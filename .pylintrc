@@ -1,0 +1,8 @@
+[FORMAT]
+# The default 80 limit is a tad hard:
+max-line-length=100
+# file's being a reserved keyword is annoying:
+good-names = f
+
+[MASTER]
+disable=unspecified-encoding,raise-missing-from,broad-exception-caught

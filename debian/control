@@ -1,0 +1,24 @@
+Source: pirogue-admin
+Section: misc
+Priority: optional
+Maintainer: U+039b <hello@pts-project.org>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-python,
+ python3-all,
+ python3-setuptools,
+ python3-yaml,
+Standards-Version: 4.5.1
+Homepage: https://github.com/PiRogueToolSuite/pirogue-admin
+Rules-Requires-Root: no
+
+Package: pirogue-admin
+Architecture: all
+Depends:
+ python3-yaml,
+ ${python3:Depends},
+ ${misc:Depends},
+Description: PiRogue administration tool
+ This package features autodetection to facilitate PiRogue's deployment, and
+ coordinates configuration file updates alongside relevant service restarts
+ whenever the configuration is updated.
