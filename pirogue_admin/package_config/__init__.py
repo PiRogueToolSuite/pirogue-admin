@@ -11,7 +11,10 @@ import hashlib
 import os
 import shlex
 import subprocess
+from io import TextIOWrapper
 from pathlib import Path
+from dataclasses import dataclass
+from typing import TextIO
 
 import yaml
 
@@ -25,6 +28,85 @@ def get_size_and_digest(path: Path):
     if not path.exists():
         return -1, None
     return path.stat().st_size, hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
+
+
+@dataclass
+class ConfigurationContext:
+    """
+    Holds PiRogue admin execution context through all internal tools.
+    By default, an execution context is in dry-run mode, meaning,
+    no system file will be altered, no hook will be executed.
+    """
+    pirogue_working_root_dir: str
+    pirogue_admin_dir: str
+    pirogue_var_dir: str
+    commit: bool = False
+    from_scratch: bool = False
+
+    @staticmethod
+    def path_concat(*paths):
+        """
+        Concatenates and simplifies paths, even there are multiple apparent absolute paths.
+        pathlib.join and pathlib.Path does not support fluent path concatenation.
+        WARNING: this implementation does not support Windows systems.
+        e.g:
+          - path_concat(['/other/path', '/usr/bin']) will result to '/other/path/usr/bin'
+          - path_concat(['/other/path', '../usr/bin']) will result to '/other/usr/bin'
+
+        :param paths: paths to concat
+        :return: a string representation of the concatenation
+        """
+        return os.path.normpath(os.sep.join(paths))
+
+    @property
+    def dry_run(self) -> bool:
+        """
+        Returns True if this configuration context is running in dry-run mode.
+        """
+        return not self.commit
+
+    @property
+    def root_dir(self) -> str:
+        """
+        Returns the 'root' directory depending on the current dry-run mode.
+        """
+        if self.dry_run:
+            return ConfigurationContext.path_concat(os.getcwd(), 'dry-run')
+        else:
+            return self.pirogue_working_root_dir
+
+    @property
+    def admin_dir(self) -> str:
+        """
+        Returns the PiRogue share/admin directory depending on the current
+        PIROGUE_WORKING_ROOT_DIR configuration.
+        """
+        return ConfigurationContext.path_concat(self.pirogue_working_root_dir, self.pirogue_admin_dir)
+
+    @property
+    def var_dir(self) -> str:
+        """
+        Returns the PiRogue var/admin directory depending on the current
+        PIROGUE_WORKING_ROOT_DIR configuration.
+        """
+        return ConfigurationContext.path_concat(self.pirogue_working_root_dir, self.pirogue_var_dir)
+
+    @property
+    def write_var_dir(self) -> str:
+        """
+        Returns the PiRogue var/admin directory depending on the current dry-run mode.
+        """
+        if self.dry_run:
+            return ConfigurationContext.path_concat(self.root_dir, self.pirogue_var_dir)
+        else:
+            return self.var_dir
+
+    def __repr__(self):
+        return f"ConfigurationContext(" \
+               f"pirogue_working_root_dir={self.root_dir}, " \
+               f"pirogue_admin_dir={self.admin_dir}, " \
+               f"pirogue_var_dir={self.var_dir}, " \
+               f"dry_run={self.dry_run} from_scratch={self.from_scratch})"
 
 
 class PackageConfig:
@@ -42,7 +124,8 @@ class PackageConfig:
        name: "action-name" while all other actions are expected to be shell
        command lines.
     """
-    def __init__(self, directory: Path):
+    def __init__(self, ctx: ConfigurationContext, directory: Path):
+        self.ctx = ctx
         self.directory = directory
         self.package = directory.name
         self.variables: dict[str, str] = {}
@@ -56,8 +139,7 @@ class PackageConfig:
         """
         print(f'applying configuration for {self.package}')
 
-        # TEMPORARY: pretend the current directory is the root of the filesystem.
-        root = os.getcwd()
+        root = self.ctx.root_dir
 
         # FIXME: The intent behind factorized "actions" in the dashboard case
         # wasn't bad, but the implementation won't work as we're going to run
@@ -109,9 +191,13 @@ class PackageConfig:
             if action in performed_actions:
                 print(f'skipping {action}, already done')
                 continue
-            print(f'should be running {shlex.split(action)}')
+            print(f'running {shlex.split(action)}')
             performed_actions.append(action)
-            #subprocess.check_call(shlex.split(action))
+            if self.ctx.dry_run:
+                print(f'dry-running {shlex.split(action)} ...')
+            else:
+                subprocess.check_call(shlex.split(action))
+            print(f'running {shlex.split(action)}: done.')
 
     def parse_index(self, index: Path):
         """
@@ -230,19 +316,19 @@ class PackageConfig:
         return f'package={self.package}\nvariables={self.variables}\nfiles={self.files}\n'
 
 
-class PackageConfigLoader():
+class PackageConfigLoader:
     """
     Generate PackageConfig instances based on an entry point directory.
 
     Additionally, check there are no clashes across variables they provide
     default values for.
     """
-    def __init__(self, admin_dir: str):
-        self.admin_dir = admin_dir
+    def __init__(self, ctx: ConfigurationContext):
+        self.ctx = ctx
 
         self.configs: list[PackageConfig] = []
-        for item in [path for path in Path(self.admin_dir).glob('*') if path.is_dir()]:
-            self.configs.append(PackageConfig(item))
+        for item in [path for path in Path(self.ctx.admin_dir).glob('*') if path.is_dir() or path.is_symlink()]:
+            self.configs.append(PackageConfig(self.ctx, item))
 
         self.variables: dict[str, str] = {}
         for config in self.configs:
@@ -250,6 +336,118 @@ class PackageConfigLoader():
                 if variable in self.variables:
                     raise ValueError(f'default variable {variable} redefined in {config.package}')
                 self.variables[variable] = value
+
+        self.current_config: dict[str, str] = {}
+        self.load_current_configuration_state()
+
+    def load_current_configuration_state(self):
+
+        if self.ctx.from_scratch:
+            print('Loading current config (from scratch): empty')
+            return
+
+        current_config_path = Path(self.ctx.var_dir, 'config.yaml')
+        if not current_config_path.exists():
+            print(f"No current configuration: {current_config_path}")
+            return
+
+        loaded_current_config = yaml.safe_load(current_config_path.read_text())
+        if isinstance(loaded_current_config, dict):  # Prevents existing but empty file
+            for k, v in loaded_current_config.items():
+                self.current_config[k] = v
+
+        print('Loading current config:', self.current_config)
+
+    def get_configuration_tree(self):
+        """
+        Generates a configuration yaml tree map of the current pirogue admin ecosystem.
+
+        :return a dictionary structure of the configuration
+        """
+        by_package = dict()
+        by_file = dict()
+        by_variable = dict()
+        by_action = dict()
+
+        for s in self.configs:
+            by_package[s.package] = {
+                'files': set(),
+                'variables': set(),
+                'actions': set(),
+            }
+            for f in s.files:
+                by_file[f['dst']] = by_file.get(f['dst']) or {
+                    'packages': set(),
+                    'variables': set(),
+                    'actions': set(),
+                }
+                by_file[f['dst']]['packages'].add(s.package)
+                by_package[s.package]['files'].add(f['dst'])
+
+                for v in f['variables']:
+                    by_variable[v['name']] = by_variable.get(v['name']) or {
+                        'packages': set(),
+                        'files': set(),
+                        'actions': set(),
+                    }
+                    if v['name'] in self.variables:
+                        by_variable[v['name']]['default'] = self.variables[v['name']]
+                    by_variable[v['name']]['packages'].add(s.package)
+                    by_variable[v['name']]['files'].add(f['dst'])
+
+                    by_package[s.package]['variables'].add(v['name'])
+                    by_file[f['dst']]['variables'].add(v['name'])
+
+                for a in f['actions']:
+                    by_action[a] = by_action.get(a, {
+                        'packages': set(),
+                        'files': set(),
+                        'variables': set(),
+                    })
+                    by_action[a]['packages'].add(s.package)
+                    by_action[a]['files'].add(f['dst'])
+
+                    by_package[s.package]['actions'].add(a)
+                    by_file[f['dst']]['actions'].add(a)
+
+                    for v in f['variables']:
+                        by_action[a]['variables'].add(v['name'])
+                        by_variable[v['name']]['actions'].add(a)
+
+        whole_map = {
+            'packages': by_package,
+            'files': by_file,
+            'variables': by_variable,
+            'actions': by_action,
+        }
+
+        # FIXME: Find a way to avoid set() conversion to list()
+        # yaml dumps set()s differently than list()s:
+        # yaml appends '!!set' keyword to all set() dumps
+        # it should be possible to tweak yaml.dump invocation with some arguments to avoid this behavior.
+        for s in whole_map:
+            for k in whole_map[s]:
+                for fk in whole_map[s][k]:
+                    if isinstance(whole_map[s][k][fk], set):
+                        whole_map[s][k][fk] = sorted(whole_map[s][k][fk])
+
+        return whole_map
+
+    def dump_current_configuration(self, output: TextIO, notice_preamble: bool = False):
+        """
+        Writes the current configuration set to the given output stream. Can write user notice as header in the dump.
+        :param output: a valid text output stream
+        :param notice_preamble: appends a 'dot not edit' user header notice if True
+        """
+        if notice_preamble:
+            output.write('# This file is generated\n')
+            output.write('# Do not edit this file directly\n')
+            output.write('# Use pirogue-admin tools to modify this PiRogue configuration\n')
+        yaml.safe_dump(self.current_config, output,
+                       sort_keys=False,
+                       default_flow_style=False,
+                       encoding="utf-8",
+                       allow_unicode=True)
 
     def get_needed_variables(self):
         """
@@ -269,6 +467,12 @@ class PackageConfigLoader():
         """
         # Start from default variables, and overlay dynamic variables:
         variables = copy.deepcopy(self.variables)
+
+        # Preloads each current_config
+        for key, value in self.current_config.items():
+            variables[key] = value
+
+        # Applies new variables set
         for key, value in dynamic_variables.items():
             variables[key] = value
 
@@ -277,7 +481,21 @@ class PackageConfigLoader():
         if missing:
             raise ValueError(f'missing variables: {missing}')
 
+        if self.ctx.dry_run:
+            print(f'notice: in dry-run mode, all files will be written locally to: {self.ctx.root_dir}')
+
         # Iterate over AdminConfig instances sorting them alphabetically, but we
         # could introduce some priority/order if needed:
         for config in sorted(self.configs, key=lambda x: x.package):
             config.apply_configuration(variables)
+
+        # Assuming previous 'apply_configuration' did not raise any exception
+        # Merge applied configuration to current configuration
+        self.current_config = copy.deepcopy(variables)
+
+        # Saves the current configuration
+        destination_config_path = Path(self.ctx.write_var_dir, 'config.yaml')
+        print(f'Writing configuration file to: {destination_config_path}')
+        destination_config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(destination_config_path, 'w', encoding="utf-8") as out_fd:
+            self.dump_current_configuration(out_fd, notice_preamble=True)

@@ -19,6 +19,7 @@ from functools import wraps
 # following functions:
 SUPPORTED_FORMATTERS = {}
 
+
 def formatter(func):
     """
     Map format_<type> function to each <type>.

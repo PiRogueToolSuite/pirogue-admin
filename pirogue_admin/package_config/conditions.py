@@ -26,6 +26,7 @@ def get_iptables_alternatives_value():
 # following methods:
 SUPPORTED_CONDITIONS = {}
 
+
 def conditioner(func):
     """
     Map condition_<name> implementation to each condition <NAME>.

@@ -212,7 +212,9 @@ def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
     # Better be connected already!
     external = detect_external_interface()
     if external is None:
-        return (OperatingMode.UNKNOWN, 'no external interface found')
+        return (OperatingMode.UNKNOWN,
+                'no external interface found',
+                'no candidate found')
 
     # Let's assume we never want to touch the external interface (be it wired,
     # wireless, or something else). Also, it might not show up in weird cases

@@ -65,3 +65,66 @@ Components
    are available, which network tools are installed and in use, what the network
    configuration looks like and whether it was set up by PiRogue tools. It also
    implements heuristics to suggest the most appropriate settings to users.
+
+
+Development environment
+-----------------------
+
+By default, `pirogue-admin` is in dry-run mode.
+
+By default, `pirogue-admin` interprets absolute filepath from root filesystem `/`.
+
+
+### Dry-run mode
+
+Dry-run mode:
+ - writes all destination files into `${CWD}/dry-run`
+ - skips all sub command executions
+
+By default, all `pirogue-admin` executions are in dry-run mode. To deactivate
+this mode, you must use the explicit `--commit` parameter. 
+
+
+### Working root directory
+
+By default, `pirogue-admin` interprets absolute filepath from root filesystem `/`.
+
+For development purpose, this can be overridden using the `PIROGUE_WORKING_ROOT_DIR`
+environment variable.
+
+E.g:
+```bash
+PIROGUE_WORKING_ROOT_DIR=./devel/my-dev-chroot pirogue-admin --help
+```
+
+This allows the developer to simulate pirogue administration, putting all `index.yaml` in
+a fake root directory structure with all their related file needed at configuration
+generation stage. For more information about pirogue configurable packages,
+see [deb-packages project](https://github.com/PiRogueToolSuite/deb-packages/tree/virogue)
+
+> [!NOTE] 
+> When `--commit` is used in conjunction with a custom `PIROGUE_WORKING_ROOT_DIR`, changes are written
+> to the `PIROGUE_WORKING_ROOT_DIR`.
+
+
+### Examples
+Dry running differential configuration changes, from stdin:
+```bash
+cat my-tiny-changes.yml | pirogue-admin --apply
+```
+
+Dry running differential configuration changes, from file:
+```bash
+pirogue-admin --apply my-tiny-changes.yml
+```
+
+Applying differential configuration changes:
+```bash
+cat my-tiny-changes.yml | pirogue-admin --apply --commit
+```
+
+Dry running full configuration changes and prevent from loading existing
+configuration:
+```bash
+cat all-new-variables-set.yml | pirogue-admin --apply --from-scratch
+```
