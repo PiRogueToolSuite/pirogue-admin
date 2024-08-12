@@ -161,3 +161,18 @@ def format_nftables_list_of_networks(value: str,
     """
     networks = [x.strip() for x in value.split(',')]
     return ', '.join(networks)
+
+
+@formatter
+def format_certificate_path_prefix(value: str,
+                                   _variables: dict[str, str]):
+    """
+    Returns certificate path in use.
+    Contextually, 'value' must be ENABLE_PUBLIC_ACCESS boolean configuration variable.
+    """
+    if bool(value):
+        # Must be certbot path like
+        return f'/etc/letsencrypt/live/{_variables["PUBLIC_DOMAIN_NAME"]}'
+    else:
+        # Must be self-signed path like
+        return f'/var/lib/pirogue/admin/pirogue-external-exposure'

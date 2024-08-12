@@ -94,6 +94,19 @@ class ConfigurationContext:
             return ConfigurationContext.path_concat(self.root_dir, self.pirogue_var_dir)
         return self.var_dir
 
+    def derive(self, commit: bool, from_scratch: bool):
+        """
+        Gets a new derived ConfigurationContext of self,
+        overriding 'commit' and 'from_scratch' parameters .
+        :param commit: true if modification should be commited
+        :param from_scratch: true if current state should not be loaded
+        :return: a new derived ConfigurationContext
+        """
+        return ConfigurationContext(self.pirogue_working_root_dir,
+                                    self.pirogue_admin_dir,
+                                    self.pirogue_var_dir,
+                                    commit, from_scratch)
+
     def __repr__(self):
         return f"ConfigurationContext(" \
                f"pirogue_working_root_dir={self.root_dir}, " \
@@ -348,7 +361,7 @@ class PackageConfig:
                     if shell_action_element.startswith('@') and shell_action_element.endswith('@'):
                         variable_ref = shell_action_element.removeprefix('@').removesuffix('@')
                         if variable_ref in variables:
-                            expanded_shell_action_fragments.append(variables[variable_ref])
+                            expanded_shell_action_fragments.append(str(variables[variable_ref]))
                         else:
                             raise KeyError(
                                 f'{variable_ref} variable not found'

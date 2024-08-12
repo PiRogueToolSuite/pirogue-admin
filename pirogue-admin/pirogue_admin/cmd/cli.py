@@ -8,6 +8,7 @@ Known limitations:
 
 import argparse
 import copy
+import ipaddress
 import logging
 import os
 import sys
@@ -19,6 +20,7 @@ import yaml
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
 from pirogue_admin.system_config import OperatingMode
 from pirogue_admin.system_config import (detect_ipv4_networks,
+                                         detect_ipv4_address,
                                          detect_external_ipv4_address,
                                          pick_isolated_network,
                                          suggest_operating_mode,)
@@ -121,6 +123,9 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
     external_networks = detect_ipv4_networks(external_interface)
     logging.info('external networks: %s', external_networks)
 
+    external_address = detect_ipv4_address(external_interface)
+    logging.info('external address: %s', external_address)
+
     isolated_network = pick_isolated_network(external_networks)
     logging.info('isolated network picked: %s', isolated_network)
 
@@ -135,17 +140,30 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
     # to avoid running a rogue DHCP server).
     enable_dhcp = True
 
+    # FIXME: HOSTNAME hardcoded for now
+    system_hostname = 'pirogue'
+    external_domain_name = f'{system_hostname}.local'
+    external_contact_email = f'root@{system_hostname}.local'
+    # By default, public exposure is disabled
+    public_access = False
+
     return {
         'ISOLATED_NETWORK': str(isolated_network),
         'ISOLATED_ADDRESS': str(isolated_address),
         'ISOLATED_INTERFACE': isolated_interface,
         'EXTERNAL_INTERFACE': external_interface,
+        'EXTERNAL_ADDRESS': str(external_address),
         'EXTERNAL_NETWORKS': ','.join(external_networks),
         'ENABLE_DHCP': enable_dhcp,
         # Things that might be accumulated depending on the operating mode:
         **extras,
         # This is for SystemConfig (pirogue-admin):
         'SYSTEM_OPERATING_MODE': mode.value,
+        # Ensure no conflict with HOSTNAME exiting env. variable
+        'SYSTEM_HOSTNAME': system_hostname,
+        'PUBLIC_DOMAIN_NAME': external_domain_name,
+        'PUBLIC_CONTACT_EMAIL': external_contact_email,
+        'ENABLE_PUBLIC_ACCESS': public_access,
     }
 
 
@@ -157,7 +175,7 @@ def autodetect_and_provision(c_ctx: ConfigurationContext):
     autodetected settings.
     """
     settings = autodetect_settings(c_ctx)
-    print(yaml.safe_dump(settings))
+    #print(yaml.safe_dump(settings))
 
     user_config_path = Path(c_ctx.var_dir, 'user.config.yaml')
     if user_config_path.exists():

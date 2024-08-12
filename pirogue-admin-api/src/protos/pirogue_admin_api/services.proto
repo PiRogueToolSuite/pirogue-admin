@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package pirogue.admin.services;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+service Services {
+  /* Dashboard */
+  rpc GetDashboardConfiguration (google.protobuf.Empty) returns (DashboardConfiguration) {}
+  rpc SetDashboardConfiguration (DashboardConfiguration) returns (google.protobuf.Empty) {}
+
+  /* Suricata */
+  rpc ListSuricataRulesSources (google.protobuf.Empty) returns (SuricataRulesSources) {}
+  /*rpc UpdateSuricataRulesSources (google.protobuf.Empty) returns (google.protobuf.StringValue) {}*/
+  rpc AddSuricataRulesSource (SuricataRulesSource) returns (google.protobuf.Empty) {}
+  rpc DeleteSuricataRulesSource (google.protobuf.StringValue) returns (google.protobuf.Empty) {}
+}
+
+message DashboardConfiguration {
+  optional string password = 1;
+}
+
+message SuricataRulesSource {
+  string name = 1;
+  string url = 2;
+}
+
+message SuricataRulesSources {
+  repeated SuricataRulesSource sources = 1;
+}

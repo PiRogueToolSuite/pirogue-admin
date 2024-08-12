@@ -328,6 +328,30 @@ def detect_ipv4_networks(interface: str) -> List[str]:
         raise RuntimeError(f'unable to detect IPv4 networks: {exception}')
 
 
+def detect_ipv4_address(interface: str) -> ipaddress.IPv4Address:
+    """
+    Return the first IPv4 address available on the given interface.
+    """
+    try:
+        ip_json = subprocess.check_output([
+            'ip', '--json', 'addr', 'show', 'dev', interface
+        ]).decode()
+        ip_output = json.loads(ip_json)
+        # We expect a single interface here as we used "dev interface":
+        for interface_info in ip_output:
+            # But we might have several addr_info:
+            for addr_info in interface_info['addr_info']:
+                if addr_info['family'] != 'inet':
+                    continue
+
+                address = ipaddress.IPv4Address(f'{addr_info["local"]}')
+                return address
+
+        raise RuntimeError(f'unable to detect IPv4 address: no IPv4 address available on interface: {interface}')
+    except BaseException as exception:
+        raise RuntimeError(f'unable to detect IPv4 address: {exception}')
+
+
 def detect_external_ipv4_address(timeout: int = 30) -> ipaddress.IPv4Address:
     """
     Use icanhazip to determine a public IPv4 address.

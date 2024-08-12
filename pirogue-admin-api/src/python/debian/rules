@@ -1,7 +1,6 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=pirogue_admin_client
-
+export PYBUILD_NAME=pirogue_admin_api
 %:
 	dh $@ --with quilt,python3 --buildsystem=pybuild
 
@@ -10,4 +9,4 @@ override_dh_builddeb:
 
 override_dh_clean:
 	dh_clean
-	rm -rf pirogue_admin_client.egg-info/
+	rm -rf pirogue_admin_api.egg-info/

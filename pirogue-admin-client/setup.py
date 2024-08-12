@@ -3,20 +3,18 @@ from setuptools import find_packages, setup
 requirements = [i.strip() for i in open("requirements.txt").readlines()]
 
 setup(
-    name="pirogue-admin",
+    name="pirogue-admin-client",
     version="1.0.0",
-    author="Cyril Brulebois",
-    author_email="cyril@debamax.com",
-    description="Admin management for the PiRogue",
-    url="https://github.com/PiRogueToolSuite/pirogue-admin",
+    author="Christophe Andral",
+    author_email="christophe@andral.fr",
+    description="Admin management client for the PiRogue",
+    url="https://github.com/PiRogueToolSuite/pirogue-admin-client",
     install_requires=requirements,
     packages=find_packages(),
     zip_safe=True,
     entry_points={
         "console_scripts": [
-            "pirogue-admin = pirogue_admin.cmd.cli:main",
-            "pirogue-admin-daemon = pirogue_admin.daemon:serve",
-            "pirogue-admin-wireguard = pirogue_admin.cmd.wireguard_cli:main",
+            "pirogue-admin-client = pirogue_admin_client.cli:main",
         ],
     },
     classifiers=[

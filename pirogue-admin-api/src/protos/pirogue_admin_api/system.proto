@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package pirogue.admin.system;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+service System {
+
+  rpc GetOperatingMode (google.protobuf.Empty) returns (OperatingModeResponse) {}
+
+  rpc GetStatus (google.protobuf.Empty) returns (Status) {}
+
+  rpc GetConfiguration (google.protobuf.Empty) returns (Configuration) {}
+  /*rpc ApplyConfiguration (ApplyRequest) returns (google.protobuf.Empty) {}*/
+
+  rpc GetConfigurationTree (google.protobuf.Empty) returns (ConfigurationTree) {}
+
+  rpc GetPackagesInfo (google.protobuf.Empty) returns (PackagesInfo) {}
+
+  rpc GetHostname (google.protobuf.Empty) returns (google.protobuf.StringValue) {}
+  rpc SetHostname (google.protobuf.StringValue) returns (google.protobuf.Empty) {}
+
+  /*rpc GetDomainName (google.protobuf.Empty) returns (google.protobuf.StringValue) {}*/
+  /*rpc SetDomainName (google.protobuf.StringValue) returns (google.protobuf.Empty) {}*/
+
+  rpc GetLocale (google.protobuf.Empty) returns (google.protobuf.StringValue) {}
+  rpc SetLocale (google.protobuf.StringValue) returns (google.protobuf.Empty) {}
+  rpc GetTimezone (google.protobuf.Empty) returns (google.protobuf.StringValue) {}
+  rpc SetTimezone (google.protobuf.StringValue) returns (google.protobuf.Empty) {}
+
+  rpc ListConnectedDevices (google.protobuf.Empty) returns (DeviceList) {}
+
+  /* rpc EnrollColanderServer (google.protobuf.Empty) returns (google.protobuf.Empty) {} */
+
+}
+
+enum OperatingMode {
+  OPERATING_MODE_UNSPECIFIED = 0;
+  OPERATING_MODE_ACCESS_POINT = 1;
+  OPERATING_MODE_APPLIANCE = 2;
+  OPERATING_MODE_VPN = 3;
+  OPERATING_MODE_WIFI_2_USB_TETHERING = 4;
+}
+
+message OperatingModeResponse {
+  OperatingMode mode = 1;
+}
+
+message Configuration {
+  map<string, string> variables = 1;
+}
+
+message ApplyRequest {
+  Configuration configuration = 1;
+  bool commit = 2;
+  bool from_scratch = 3;
+}
+
+message ConfigurationTreeSection {
+  repeated string packages = 1;
+  repeated string files = 2;
+  repeated string variables = 3;
+  repeated string actions = 4;
+  optional string default = 5;
+}
+
+message ConfigurationTree {
+  map<string, ConfigurationTreeSection> packages = 1;
+  map<string, ConfigurationTreeSection> files = 2;
+  map<string, ConfigurationTreeSection> variables = 3;
+  map<string, ConfigurationTreeSection> actions = 4;
+}
+
+enum StatusState {
+  STATUS_STATE_UNSPECIFIED = 0;
+  STATUS_STATE_DOWN = 1;
+  STATUS_STATE_STARTING = 2;
+  STATUS_STATE_UP = 3;
+  STATUS_STATE_STOPPING = 4;
+  STATUS_STATE_ERROR = 5;
+}
+
+message Status {
+  map<string, StatusState> status = 1;
+}
+
+message PackageInfo {
+  string name = 1;
+  string version = 2;
+  string status = 3;
+}
+message PackagesInfo {
+  repeated PackageInfo packages = 1;
+}
+
+message Device {
+  string name = 1;
+}
+
+message DeviceList {
+  repeated Device devices = 1;
+}

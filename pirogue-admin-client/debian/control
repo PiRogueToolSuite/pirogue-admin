@@ -1,4 +1,4 @@
-Source: pirogue-admin
+Source: pirogue-admin-client
 Section: misc
 Priority: optional
 Maintainer: U+039b <hello@pts-project.org>
@@ -14,18 +14,14 @@ Standards-Version: 4.5.1
 Homepage: https://github.com/PiRogueToolSuite/pirogue-admin
 Rules-Requires-Root: no
 
-Package: pirogue-admin
+Package: pirogue-admin-client
 Architecture: all
 Depends:
  pirogue-admin-api,
  python3-grpcio,
- python3-requests,
- python3-systemd,
  python3-yaml,
- qrencode,
  ${python3:Depends},
  ${misc:Depends},
-Description: PiRogue administration tool
- This package features autodetection to facilitate PiRogue's deployment, and
- coordinates configuration file updates alongside relevant service restarts
- whenever the configuration is updated.
+Description: PiRogue administration client
+ This package allows the user to administrate a PiRogue instance locally
+ and remotely.

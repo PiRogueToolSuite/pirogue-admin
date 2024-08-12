@@ -1,6 +1,4 @@
 grpcio==1.51.3
 pirogue_admin_api
 pyyaml
-requests
 setuptools
-systemd
