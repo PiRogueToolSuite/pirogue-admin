@@ -334,11 +334,8 @@ class PackageConfigLoader:
                     raise ValueError(f'default variable {variable} redefined in {config.package}')
                 self.variables[variable] = value
 
+        # Load current config based on CLI flags and on config file's presence:
         self.current_config: dict[str, str] = {}
-        self.load_current_configuration_state()
-
-    def load_current_configuration_state(self):
-
         if self.ctx.from_scratch:
             print('Loading current config (from scratch): empty')
             return
