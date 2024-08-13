@@ -33,7 +33,8 @@ def check_consistency(c_ctx: ConfigurationContext):
     print(loader.configs)
     #print(loader.get_needed_variables())
     #print(loader.variables)
-    needed = [x for x in loader.get_needed_variables() if x not in loader.variables and x not in loader.current_config]
+    needed = [x for x in loader.get_needed_variables()
+              if x not in loader.variables and x not in loader.current_config]
     #print(needed)
 
     pretty_print_map = {
@@ -43,7 +44,10 @@ def check_consistency(c_ctx: ConfigurationContext):
         'remain_needed': needed,
         'currents': loader.current_config,
     }
-    yaml.safe_dump(pretty_print_map, sys.stdout, default_flow_style=False, encoding="utf-8", allow_unicode=True)
+    yaml.safe_dump(pretty_print_map, sys.stdout,
+                   default_flow_style=False,
+                   encoding="utf-8",
+                   allow_unicode=True)
 
 
 def autodetect_settings(c_ctx: ConfigurationContext):
@@ -166,11 +170,13 @@ def main():
                         The current configuration is written to an optional file or stdout (default).
                         The current configuration is a set of "KEY: 'value'" pairs.''')
     parser.add_argument('--commit', action='store_true',
-                        help='disable dry-run mode and commit changes (writing system files and executing hooks)')
+                        help='''disable dry-run mode and commit changes (writing system files and
+                        executing hooks)''')
 
     args = parser.parse_args()
 
-    c_ctx = ConfigurationContext(WORKING_ROOT_DIR, ADMIN_CONFIG_DIR, ADMIN_VAR_DIR, args.commit, args.from_scratch)
+    c_ctx = ConfigurationContext(WORKING_ROOT_DIR, ADMIN_CONFIG_DIR, ADMIN_VAR_DIR,
+                                 args.commit, args.from_scratch)
 
     if args.check:
         check_consistency(c_ctx)
