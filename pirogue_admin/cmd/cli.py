@@ -151,13 +151,13 @@ def main():
     parser.add_argument('--apply',
                         action='store', nargs='?', type=argparse.FileType('r'),
                         default=argparse.SUPPRESS,
-                        help='''applies a new configuration to the system.
+                        help='''apply a new configuration to the system.
                         Configuration is read from an optional input file or stdin (default).
                         Configuration is a set of "KEY: 'value'" pairs''')
     parser.add_argument('--configuration-tree', '--tree', '-t',
                         action='store', nargs='?', type=argparse.FileType('w'),
                         default=argparse.SUPPRESS,
-                        help='''generates a configuration tree map, describing this pirogue instance.
+                        help='''generate a configuration tree map, describing this pirogue instance.
                         The descriptive tree is written to an optional file or stdout (default).''')
     parser.add_argument('--current-config', '--config',
                         action='store', nargs='?', type=argparse.FileType('w'),
@@ -166,7 +166,7 @@ def main():
                         The current configuration is written to an optional file or stdout (default).
                         The current configuration is a set of "KEY: 'value'" pairs.''')
     parser.add_argument('--commit', action='store_true',
-                        help='Disable dry-run mode and commit changes (writing system files and executing hooks)')
+                        help='disable dry-run mode and commit changes (writing system files and executing hooks)')
 
     args = parser.parse_args()
 
