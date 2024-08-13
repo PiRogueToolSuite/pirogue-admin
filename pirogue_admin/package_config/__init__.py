@@ -361,10 +361,10 @@ class PackageConfigLoader:
 
         :return a dictionary structure of the configuration
         """
-        by_package = dict()
-        by_file = dict()
-        by_variable = dict()
-        by_action = dict()
+        by_package = {}
+        by_file = {}
+        by_variable = {}
+        by_action = {}
 
         for s in self.configs:
             by_package[s.package] = {
