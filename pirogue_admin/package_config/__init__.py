@@ -11,7 +11,6 @@ import hashlib
 import os
 import shlex
 import subprocess
-from io import TextIOWrapper
 from pathlib import Path
 from dataclasses import dataclass
 from typing import TextIO
