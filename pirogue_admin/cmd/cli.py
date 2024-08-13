@@ -9,7 +9,6 @@ Known limitations:
 import argparse
 import os
 import sys
-from pathlib import Path
 from typing import TextIO
 
 import yaml
