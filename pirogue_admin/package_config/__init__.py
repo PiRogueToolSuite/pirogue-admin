@@ -350,8 +350,8 @@ class PackageConfigLoader:
 
         loaded_current_config = yaml.safe_load(current_config_path.read_text())
         if isinstance(loaded_current_config, dict):  # Prevents existing but empty file
-            for k, v in loaded_current_config.items():
-                self.current_config[k] = v
+            for key, value in loaded_current_config.items():
+                self.current_config[key] = value
 
         print('Loading current config:', self.current_config)
 
