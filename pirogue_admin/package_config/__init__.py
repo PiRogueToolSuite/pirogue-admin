@@ -361,6 +361,7 @@ class PackageConfigLoader:
 
         :return a dictionary structure of the configuration
         """
+        # Accept (very) short names in this function => pylint: disable=invalid-name
         by_package = {}
         by_file = {}
         by_variable = {}
