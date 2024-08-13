@@ -71,8 +71,7 @@ class ConfigurationContext:
         """
         if self.dry_run:
             return ConfigurationContext.path_concat(os.getcwd(), 'dry-run')
-        else:
-            return self.pirogue_working_root_dir
+        return self.pirogue_working_root_dir
 
     @property
     def admin_dir(self) -> str:
@@ -97,8 +96,7 @@ class ConfigurationContext:
         """
         if self.dry_run:
             return ConfigurationContext.path_concat(self.root_dir, self.pirogue_var_dir)
-        else:
-            return self.var_dir
+        return self.var_dir
 
     def __repr__(self):
         return f"ConfigurationContext(" \
