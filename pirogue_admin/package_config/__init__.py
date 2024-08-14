@@ -17,6 +17,7 @@ from typing import TextIO
 
 import yaml
 
+from pirogue_admin.system_config import SystemConfig
 from .formatters import SUPPORTED_FORMATTERS
 
 
@@ -335,6 +336,9 @@ class PackageConfigLoader:
     def __init__(self, ctx: ConfigurationContext):
         self.ctx = ctx
 
+        # We have a single SystemConfig for pirogue-admin itself, and many
+        # PackageConfig instances (~ /usr/share/pirogue-admin/* directories):
+        self.system_config = SystemConfig()
         self.configs: list[PackageConfig] = []
         for item in [path for path in Path(self.ctx.admin_dir).glob('*')
                      if path.is_dir() or path.is_symlink()]:
@@ -466,7 +470,7 @@ class PackageConfigLoader:
         Return all required variables for SystemConfig and for all PackageConfig
         instances.
         """
-        variables = []
+        variables = self.system_config.get_needed_variables()
         for config in self.configs:
             variables.extend(config.get_needed_variables())
         return sorted(set(variables))
@@ -495,6 +499,10 @@ class PackageConfigLoader:
         if self.ctx.dry_run:
             print(f'notice: in dry-run mode, all files will be written locally to: '
                   f'{self.ctx.root_dir}')
+
+        # Start by adjusting the system configuration (at least initially that's
+        # about the network configuration for the isolated network):
+        self.system_config.apply_configuration(variables)
 
         # Iterate over PackageConfig instances sorting them alphabetically, but we
         # could introduce some priority/order if needed:
