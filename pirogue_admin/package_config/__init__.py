@@ -3,7 +3,7 @@ This module deals with package-provided configuration files.
 
 Each package wanting to get configured via pirogue-admin can ship a directory
 (preferably matching its name for consistency) under /usr/share/pirogue-admin/
-with a top-level index.yaml file that lists variables and files.
+with a top-level index.yaml file that lists variables, files, and actions.
 """
 
 import copy
@@ -17,6 +17,7 @@ from typing import TextIO
 
 import yaml
 
+from pirogue_admin.system_config import SystemConfig
 from .formatters import SUPPORTED_FORMATTERS
 
 
@@ -198,6 +199,16 @@ class PackageConfig:
                 subprocess.check_call(shlex.split(action))
             print(f'running {shlex.split(action)}: done.')
 
+    def get_needed_variables(self) -> list[str]:
+        """
+        Return all required variables for this PackageConfig instance.
+        """
+        variables = set()
+        for f in self.files:
+            for variable in f['variables']:
+                variables.add(variable['name'])
+        return sorted(variables)
+
     def parse_index(self, index: Path):
         """
         Parse the top level: check keys, then traverse.
@@ -227,6 +238,10 @@ class PackageConfig:
                 raise ValueError(f'variable name must be a string in {variable}')
             if not isinstance(variable['default'], str):
                 raise ValueError(f'variable default must be a string in {variable}')
+
+            # It must not clash with the SystemConfig namespace:
+            if variable['name'].startswith(SystemConfig.PREFIX):
+                raise ValueError(f'name cannot start with {SystemConfig.PREFIX}: {variable}')
 
             # Store if everything looks good:
             self.variables[ variable['name'] ] = variable['default']
@@ -325,6 +340,9 @@ class PackageConfigLoader:
     def __init__(self, ctx: ConfigurationContext):
         self.ctx = ctx
 
+        # We have a single SystemConfig for pirogue-admin itself, and many
+        # PackageConfig instances (~ /usr/share/pirogue-admin/* directories):
+        self.system_config = SystemConfig()
         self.configs: list[PackageConfig] = []
         for item in [path for path in Path(self.ctx.admin_dir).glob('*')
                      if path.is_dir() or path.is_symlink()]:
@@ -451,20 +469,19 @@ class PackageConfigLoader:
                        encoding="utf-8",
                        allow_unicode=True)
 
-    def get_needed_variables(self):
+    def get_needed_variables(self) -> list[str]:
         """
-        Return all required variables for all AdminConfig instances.
+        Return all required variables for SystemConfig and for all PackageConfig
+        instances.
         """
-        variables = []
+        variables = self.system_config.get_needed_variables()
         for config in self.configs:
-            for f in config.files:
-                for variable in f['variables']:
-                    variables.append(variable['name'])
+            variables.extend(config.get_needed_variables())
         return sorted(set(variables))
 
     def apply_configuration(self, dynamic_variables: dict[str, str]):
         """
-        Iterate over all files from all AdminConfig instances to apply the
+        Iterate over all files from all PackageConfig instances to apply the
         configuration.
         """
         # Start from default variables, and overlay dynamic variables:
@@ -487,7 +504,11 @@ class PackageConfigLoader:
             print(f'notice: in dry-run mode, all files will be written locally to: '
                   f'{self.ctx.root_dir}')
 
-        # Iterate over AdminConfig instances sorting them alphabetically, but we
+        # Start by adjusting the system configuration (at least initially that's
+        # about the network configuration for the isolated network):
+        self.system_config.apply_configuration(variables)
+
+        # Iterate over PackageConfig instances sorting them alphabetically, but we
         # could introduce some priority/order if needed:
         for config in sorted(self.configs, key=lambda x: x.package):
             config.apply_configuration(variables)

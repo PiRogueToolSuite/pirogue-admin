@@ -11,11 +11,14 @@ It implements:
  - suggesting the right mode based on what is detected.
 """
 
+import ipaddress
+import itertools
 import json
+import logging
 import subprocess
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 # This isn't a silver bullet but that logic worked well enough in the past:
@@ -198,7 +201,7 @@ class OperatingMode(Enum):
     UNKNOWN = '???'
 
 
-def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
+def suggest_operating_mode() -> Tuple[OperatingMode, Optional[str], List[str]]:
     """
     Implement a best guess based on available interfaces.
 
@@ -208,13 +211,17 @@ def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
 
     At the moment, this doesn't taken into account whether interfaces were
     configured already (by pirogue-admin or someone else).
+
+    Return a mode, the name of the external interface (might be None if we are
+    really unlucky), and a list of candidate interfaces for the isolated
+    network.
     """
     # Better be connected already!
     external = detect_external_interface()
     if external is None:
         return (OperatingMode.UNKNOWN,
-                'no external interface found',
-                'no candidate found')
+                None,
+                [])
 
     # Let's assume we never want to touch the external interface (be it wired,
     # wireless, or something else). Also, it might not show up in weird cases
@@ -228,28 +235,215 @@ def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
                                   if devtype == DevType.WIRELESS])
     if wireless_interfaces:
         return (OperatingMode.AP,
-                f'external: {external}',
-                f'candidates: {", ".join(wireless_interfaces)}')
+                external,
+                wireless_interfaces)
 
     # 2nd attempt is appliance mode:
     ethernet_interfaces = sorted([iface for iface, devtype in interfaces.items()
                                   if devtype == DevType.ETHERNET])
     if ethernet_interfaces:
         return (OperatingMode.APPLIANCE,
-                f'external: {external}',
-                f'candidates: {", ".join(ethernet_interfaces)}')
+                external,
+                ethernet_interfaces)
 
     # Fallback is vpn mode, we mention possible wireguard interfaces for
     # information, but see this function's docstring.
     wireguard_interfaces = sorted([iface for iface, devtype in interfaces.items()
                                    if devtype == DevType.WIREGUARD])
     return (OperatingMode.VPN,
-            f'external: {external}',
-            f'candidates: {", ".join(wireguard_interfaces)}')
+            external,
+            wireguard_interfaces)
+
+
+def detect_raspberry_hardware() -> bool:
+    """
+    Check if running on a supported Raspberry Pi device (3B, 3B+, 4B, or 5B).
+
+    The PiRogue environment was initially developed for Pi 3 and Pi 4, and we
+    want to make extra sure the initial configuration is still trivial there,
+    so we have specific detection code for Raspberry Pi devices.
+    """
+    compatible_path = Path('/proc/device-tree/compatible')
+    if not compatible_path.exists():
+        return False
+
+    compatible_text = compatible_path.read_text()
+    models = [
+        'raspberrypi,3-model-b-plus\x00brcm,bcm2837\x00',
+        'raspberrypi,3-model-b\x00brcm,bcm2837\x00',
+        'raspberrypi,4-model-b\x00brcm,bcm2711\x00',
+        'raspberrypi,5-model-b\x00brcm,bcm2712\x00',
+    ]
+    if compatible_text in models:
+        return True
+    return False
+
+
+def detect_ipv4_networks(interface: str) -> List[str]:
+    """
+    Return a list of CIDR networks for the specified interface.
+
+    We would usually expect a single network, but non-trivial setups might
+    involved having several IP addresses on a single interface. And we want to
+    use that information to pick non-conflicting settings for the isolated
+    network.
+    """
+    try:
+        networks = set()
+        ip_json = subprocess.check_output([
+            'ip', '--json', 'addr', 'show', 'dev', interface
+        ]).decode()
+        ip_output = json.loads(ip_json)
+        # We expect a single interface here as we used "dev interface":
+        for interface_info in ip_output:
+            # But we might have several addr_info:
+            for addr_info in interface_info['addr_info']:
+                if addr_info['family'] != 'inet':
+                    continue
+                # Get the network out of the address plus prefix information,
+                # turning off strict mode since host bits are set:
+                network = ipaddress.IPv4Network(f'{addr_info["local"]}/{addr_info["prefixlen"]}',
+                                                strict=False)
+                logging.info('spotting network: %s', network)
+                networks.add(str(network))
+        return sorted(networks)
+    except BaseException as exception:
+        raise RuntimeError(f'unable to detect IPv4 networks: {exception}')
+
+
+def pick_isolated_network(external_networks) -> ipaddress.IPv4Network:
+    """
+    Given a list of external networks, find a network that doesn't conflict with
+    any of them.
+
+    PiRogue deployed on actual Raspberry Pi devices can manage less than a dozen
+    devices, and a /24 seems plenty. Let's stick to this prefix length for the
+    time being, that can be revisited if needed.
+
+    RFC 1918 defines the following IP address ranges:
+     - 10.0.0.0 – 10.255.255.255     = 10.0.0.0/8
+     - 172.16.0.0 – 172.31.255.255   = 172.16.0.0/12
+     - 192.168.0.0 – 192.168.255.255 = 192.168.0.0/16
+
+    Let's for a systematic approach, iterating over all /24 subnets (ordering
+    the historical 10.8.0.0/24 one first).
+    """
+    for net in itertools.chain([ipaddress.ip_network('10.8.0.0/24')],
+                               ipaddress.ip_network('10.0.0.0/8').subnets(new_prefix=24),
+                               ipaddress.ip_network('172.16.0.0/12').subnets(new_prefix=24),
+                               ipaddress.ip_network('192.168.0.0/16').subnets(new_prefix=24)):
+        candidate = True
+        for external_net in external_networks:
+            if net.overlaps(ipaddress.ip_network(external_net)):
+                candidate = False
+        if candidate:
+            # There could be some doubt between IPv4Network and IPv6Network, but
+            # given the parameters we pass, this is definitely IPv4Network here:
+            return net  # type: ignore
+    raise RuntimeError('unable to find a suitable network')
+
+
+class SystemConfig:
+    """
+    System-level, pirogue-admin-specific configuration.
+
+    We already have PackageConfig to manage package-provided index.yaml files
+    documenting variables, files (templates), and actions.
+
+    We also need to keep track of variables for pirogue-admin itself, which are
+    very much tied to system-related discovery/auto-detection (the core of this
+    module). Instead of trying to piggy-back onto the PackageConfig system,
+    let's have a dedicated class dealing with the system configuration (mainly
+    network-related settings, at least initially).
+
+    The prefix can be used by PackageConfigLoader to ensure no clashes can
+    happen with its PackageConfig instance.
+    """
+    PREFIX = 'SYSTEM_'
+
+    def __init__(self):
+        self.variables = [
+            # This one is just for us and it must be resolvable using the
+            # OperatingMode enum:
+            f'{SystemConfig.PREFIX}OPERATING_MODE',
+            # FIXME: There is some uncertainty in the appliance mode regarding
+            # the interface for the isolated network (which might need being
+            # configured as a DHCP client and/or without a DHCP server), but for
+            # the time being, assume we do manage its configuration statically.
+            'ISOLATED_NETWORK',
+            'ISOLATED_NETWORK_ADDR',
+            'ISOLATED_NETWORK_IFACE',
+        ]
+        self.stacks = detect_network_stacks()
+
+    def apply_configuration(self, variables: dict[str, str]):
+        """
+        Apply the system configuration.
+
+        In the PackageConfig case, we have a number of formatters that can error
+        out if things aren't suitable. Let's implement our own checks.
+        """
+        logging.info('applying system configuration for pirogue-admin')
+        requested_operating_mode = variables[f'{SystemConfig.PREFIX}OPERATING_MODE']
+        try:
+            operating_mode = OperatingMode(requested_operating_mode)
+        except ValueError:
+            raise RuntimeError(f'unknown operating mode: {requested_operating_mode}')
+
+        if operating_mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
+            raise NotImplementedError(f'support for {operating_mode} is missing at this point')
+
+        self.configure_isolated_interface(
+            variables['ISOLATED_NETWORK_IFACE'],
+            variables['ISOLATED_NETWORK_ADDR'],
+            ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
+        )
+
+    def configure_isolated_interface(self, interface, address, prefixlen):
+        """
+        Configure the isolated interface.
+
+        NOTE: If we're switching between interfaces, there's no way of knowing
+        at this point. So we might need to have some explicit deconfiguration
+        step if that needs to be supported.
+        """
+        # FIXME: We only support one specific case initially:
+        if self.stacks != [NetworkStack.IFUPDOWN]:
+            raise NotImplementedError(f'support for stacks={self.stacks} is missing at this point')
+
+        # For now, assume the snippets directory exists and is referenced in the
+        # main /e/n/i file, even if we might want to add some checks to be extra
+        # sure.
+        interface_path = Path('/etc/network/interfaces.d') / interface
+        interface_path.write_text(
+            f'# Written by pirogue-admin:\n'
+            f'auto {interface}\n'
+            f'iface {interface} inet static\n'
+            f'  address {address}/{prefixlen}\n'
+        )
+
+        # Declassify the file as it doesn't contain any secrets (Debian-provided
+        # Raspberry Pi images have the wlan0 snippet restricted):
+        interface_path.chmod(0o644)
+
+        # Make sure the interface is configured right away, without relying on
+        # ifupdown tools (ifdown's and ifup's internal state might make this
+        # hard):
+        subprocess.run(['ip', 'address', 'add', f'{address}/{prefixlen}', 'dev', interface],
+                       check=False)
+
+    def get_needed_variables(self) -> list[str]:
+        """
+        Return all required variables for this SystemConfig instance.
+        """
+        return sorted(self.variables)
 
 
 if __name__ == '__main__':
     import pprint
+    print('Check running on Pi:')
+    print(detect_raspberry_hardware())
+    print()
     print('Detect network interfaces:')
     pprint.pprint(detect_network_interfaces())
     print()
