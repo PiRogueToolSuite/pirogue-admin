@@ -3,7 +3,7 @@ This module deals with package-provided configuration files.
 
 Each package wanting to get configured via pirogue-admin can ship a directory
 (preferably matching its name for consistency) under /usr/share/pirogue-admin/
-with a top-level index.yaml file that lists variables and files.
+with a top-level index.yaml file that lists variables, files, and actions.
 """
 
 import copy
