@@ -12,6 +12,7 @@ It implements:
 """
 
 import ipaddress
+import itertools
 import json
 import logging
 import subprocess
@@ -308,6 +309,38 @@ def detect_ipv4_networks(interface: str) -> List[str]:
         return sorted(networks)
     except BaseException as exception:
         raise RuntimeError(f'unable to detect IPv4 networks: {exception}')
+
+
+def pick_isolated_network(external_networks) -> ipaddress.IPv4Network:
+    """
+    Given a list of external networks, find a network that doesn't conflict with
+    any of them.
+
+    PiRogue deployed on actual Raspberry Pi devices can manage less than a dozen
+    devices, and a /24 seems plenty. Let's stick to this prefix length for the
+    time being, that can be revisited if needed.
+
+    RFC 1918 defines the following IP address ranges:
+     - 10.0.0.0 – 10.255.255.255     = 10.0.0.0/8
+     - 172.16.0.0 – 172.31.255.255   = 172.16.0.0/12
+     - 192.168.0.0 – 192.168.255.255 = 192.168.0.0/16
+
+    Let's for a systematic approach, iterating over all /24 subnets (ordering
+    the historical 10.8.0.0/24 one first).
+    """
+    for net in itertools.chain([ipaddress.ip_network('10.8.0.0/24')],
+                               ipaddress.ip_network('10.0.0.0/8').subnets(new_prefix=24),
+                               ipaddress.ip_network('172.16.0.0/12').subnets(new_prefix=24),
+                               ipaddress.ip_network('192.168.0.0/16').subnets(new_prefix=24)):
+        candidate = True
+        for external_net in external_networks:
+            if net.overlaps(ipaddress.ip_network(external_net)):
+                candidate = False
+        if candidate:
+            # There could be some doubt between IPv4Network and IPv6Network, but
+            # given the parameters we pass, this is definitely IPv4Network here:
+            return net  # type: ignore
+    raise RuntimeError('unable to find a suitable network')
 
 
 if __name__ == '__main__':
