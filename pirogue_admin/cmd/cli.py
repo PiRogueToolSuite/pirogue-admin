@@ -36,14 +36,10 @@ def check_consistency(c_ctx: ConfigurationContext):
     """
     loader = PackageConfigLoader(c_ctx)
     print(loader.configs)
-    #print(loader.get_needed_variables())
-    #print(loader.variables)
     needed = [x for x in loader.get_needed_variables()
               if x not in loader.variables and x not in loader.current_config]
-    #print(needed)
 
     pretty_print_map = {
-        #'configs': loader.configs,
         'needed_variables': loader.get_needed_variables(),
         'defaults': loader.variables,
         'remain_needed': needed,
