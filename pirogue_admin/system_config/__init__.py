@@ -248,8 +248,35 @@ def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
             f'candidates: {", ".join(wireguard_interfaces)}')
 
 
+def detect_raspberry_hardware() -> bool:
+    """
+    Check if running on a supported Raspberry Pi device (3B, 3B+, 4B, or 5B).
+
+    The PiRogue environment was initially developed for Pi 3 and Pi 4, and we
+    want to make extra sure the initial configuration is still trivial there,
+    so we have specific detection code for Raspberry Pi devices.
+    """
+    compatible_path = Path('/proc/device-tree/compatible')
+    if not compatible_path.exists():
+        return False
+
+    compatible_text = compatible_path.read_text()
+    models = [
+        'raspberrypi,3-model-b-plus\x00brcm,bcm2837\x00',
+        'raspberrypi,3-model-b\x00brcm,bcm2837\x00',
+        'raspberrypi,4-model-b\x00brcm,bcm2711\x00',
+        'raspberrypi,5-model-b\x00brcm,bcm2712\x00',
+    ]
+    if compatible_text in models:
+        return True
+    return False
+
+
 if __name__ == '__main__':
     import pprint
+    print('Check running on Pi:')
+    print(detect_raspberry_hardware())
+    print()
     print('Detect network interfaces:')
     pprint.pprint(detect_network_interfaces())
     print()
