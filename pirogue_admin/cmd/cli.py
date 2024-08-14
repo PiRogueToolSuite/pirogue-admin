@@ -15,6 +15,10 @@ from typing import TextIO
 import yaml
 
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
+from pirogue_admin.system_config import OperatingMode
+from pirogue_admin.system_config import (detect_ipv4_networks,
+                                         pick_isolated_network,
+                                         suggest_operating_mode,)
 
 WORKING_ROOT_DIR = '/'
 ADMIN_CONFIG_DIR = '/usr/share/pirogue-admin'
@@ -67,7 +71,53 @@ def autodetect_settings(c_ctx: ConfigurationContext):
     If that didn't work, propose “vpn” mode, which will eventually make another
     interface available.
     """
-    raise NotImplementedError
+    mode, external_interface, isolated_interfaces = suggest_operating_mode()
+
+    # This is essential:
+    if external_interface is None:
+        logging.error('no external interface found, please check connectivity')
+        sys.exit(1)
+
+    # This is only temporary:
+    if mode != OperatingMode.AP:
+        logging.error('suggested mode is %s, not implemented yet!', mode)
+        sys.exit(1)
+
+    # Let's make sure we've got something to work with:
+    if not isolated_interfaces:
+        logging.error('no candidate interfaces for the isolated network')
+        sys.exit(1)
+
+    # Now arbitrarily focus on the first candidate interface. We might want to
+    # make it possible to prompt here, to distinguish between interactive
+    # detection (an admin can answer questions) and non-interactive detection
+    # (initial installation might be non-interactive).
+    isolated_interface = isolated_interfaces[0]
+    logging.info('external: %s', external_interface)
+    logging.info('isolated: %s', isolated_interface)
+
+    # Now we need to find a suitable IP configuration for the isolated network,
+    # taking the current configuration of the external interface into account.
+    # We could ask the network stack with some introspection, but the quickest
+    # might be to check `ip addr show`'s output. Note the plural.
+    external_networks = detect_ipv4_networks(external_interface)
+    logging.info('external networks: %s', external_networks)
+
+    isolated_network = pick_isolated_network(external_networks)
+    logging.info('isolated network picked: %s', isolated_network)
+
+    # Finally pick the first address:
+    isolated_address = next(isolated_network.hosts())
+    logging.info('isolated address picked: %s', isolated_address)
+
+    print(yaml.safe_dump({
+        'ISOLATED_NETWORK': str(isolated_network),
+        'ISOLATED_NETWORK_ADDR': str(isolated_address),
+        'ISOLATED_NETWORK_IFACE': isolated_interface,
+        'EXTERNAL_NETWORK_IFACE': external_interface,
+        # This is for SystemConfig (pirogue-admin):
+        '_OPERATING_MODE': mode.value,
+    }))
 
 
 def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
