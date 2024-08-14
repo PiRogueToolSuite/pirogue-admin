@@ -356,14 +356,16 @@ class SystemConfig:
     let's have a dedicated class dealing with the system configuration (mainly
     network-related settings, at least initially).
 
-    To avoid any clashes, and for brevity, variables for this module are
-    prefixed with an underscore.
+    The prefix can be used by PackageConfigLoader to ensure no clashes can
+    happen with its PackageConfig instance.
     """
+    PREFIX = 'SYSTEM_'
+
     def __init__(self):
         self.variables = [
             # This one is just for us and it must be resolvable using the
             # OperatingMode enum:
-            '_OPERATING_MODE',
+            f'{SystemConfig.PREFIX}OPERATING_MODE',
             # FIXME: There is some uncertainty in the appliance mode regarding
             # the interface for the isolated network (which might need being
             # configured as a DHCP client and/or without a DHCP server), but for
@@ -382,10 +384,11 @@ class SystemConfig:
         out if things aren't suitable. Let's implement our own checks.
         """
         logging.info('applying system configuration for pirogue-admin')
+        requested_operating_mode = variables[f'{SystemConfig.PREFIX}OPERATING_MODE']
         try:
-            operating_mode = OperatingMode(variables['_OPERATING_MODE'])
+            operating_mode = OperatingMode(requested_operating_mode)
         except ValueError:
-            raise RuntimeError(f'unknown operating mode: {variables["_OPERATING_MODE"]}')
+            raise RuntimeError(f'unknown operating mode: {requested_operating_mode}')
 
         if operating_mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
             raise NotImplementedError(f'support for {operating_mode} is missing at this point')

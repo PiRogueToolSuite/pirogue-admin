@@ -113,7 +113,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         'ISOLATED_NETWORK_IFACE': isolated_interface,
         'EXTERNAL_NETWORK_IFACE': external_interface,
         # This is for SystemConfig (pirogue-admin):
-        '_OPERATING_MODE': mode.value,
+        'SYSTEM_OPERATING_MODE': mode.value,
     }))
 
 
