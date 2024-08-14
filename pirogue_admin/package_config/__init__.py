@@ -453,7 +453,7 @@ class PackageConfigLoader:
 
     def get_needed_variables(self):
         """
-        Return all required variables for all AdminConfig instances.
+        Return all required variables for all PackageConfig instances.
         """
         variables = []
         for config in self.configs:
@@ -464,7 +464,7 @@ class PackageConfigLoader:
 
     def apply_configuration(self, dynamic_variables: dict[str, str]):
         """
-        Iterate over all files from all AdminConfig instances to apply the
+        Iterate over all files from all PackageConfig instances to apply the
         configuration.
         """
         # Start from default variables, and overlay dynamic variables:
@@ -487,7 +487,7 @@ class PackageConfigLoader:
             print(f'notice: in dry-run mode, all files will be written locally to: '
                   f'{self.ctx.root_dir}')
 
-        # Iterate over AdminConfig instances sorting them alphabetically, but we
+        # Iterate over PackageConfig instances sorting them alphabetically, but we
         # could introduce some priority/order if needed:
         for config in sorted(self.configs, key=lambda x: x.package):
             config.apply_configuration(variables)
