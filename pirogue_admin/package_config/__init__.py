@@ -239,6 +239,10 @@ class PackageConfig:
             if not isinstance(variable['default'], str):
                 raise ValueError(f'variable default must be a string in {variable}')
 
+            # It must not clash with the SystemConfig namespace:
+            if variable['name'].startswith(SystemConfig.PREFIX):
+                raise ValueError(f'name cannot start with {SystemConfig.PREFIX}: {variable}')
+
             # Store if everything looks good:
             self.variables[ variable['name'] ] = variable['default']
 
