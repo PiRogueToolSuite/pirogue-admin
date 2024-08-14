@@ -1,5 +1,8 @@
-pirogue-admin (1.0.0) UNRELEASED; urgency=medium
+pirogue-admin (1.0.0) bookworm; urgency=medium
 
   * Initial release.
+  * It supports Raspberry Pi devices, implementing autodetection support
+    and configuration management for packages shipping pirogue-admin
+    metadata.
 
- -- Cyril Brulebois <cyril@debamax.com>  Mon, 08 Jul 2024 17:00:03 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Wed, 14 Aug 2024 18:26:57 +0200
