@@ -343,6 +343,99 @@ def pick_isolated_network(external_networks) -> ipaddress.IPv4Network:
     raise RuntimeError('unable to find a suitable network')
 
 
+class SystemConfig:
+    """
+    System-level, pirogue-admin-specific configuration.
+
+    We already have PackageConfig to manage package-provided index.yaml files
+    documenting variables, files (templates), and actions.
+
+    We also need to keep track of variables for pirogue-admin itself, which are
+    very much tied to system-related discovery/auto-detection (the core of this
+    module). Instead of trying to piggy-back onto the PackageConfig system,
+    let's have a dedicated class dealing with the system configuration (mainly
+    network-related settings, at least initially).
+
+    To avoid any clashes, and for brevity, variables for this module are
+    prefixed with an underscore.
+    """
+    def __init__(self):
+        self.variables = [
+            # This one is just for us and it must be resolvable using the
+            # OperatingMode enum:
+            '_OPERATING_MODE',
+            # FIXME: There is some uncertainty in the appliance mode regarding
+            # the interface for the isolated network (which might need being
+            # configured as a DHCP client and/or without a DHCP server), but for
+            # the time being, assume we do manage its configuration statically.
+            'ISOLATED_NETWORK',
+            'ISOLATED_NETWORK_ADDR',
+            'ISOLATED_NETWORK_IFACE',
+        ]
+        self.stacks = detect_network_stacks()
+
+    def apply_configuration(self, variables: dict[str, str]):
+        """
+        Apply the system configuration.
+
+        In the PackageConfig case, we have a number of formatters that can error
+        out if things aren't suitable. Let's implement our own checks.
+        """
+        logging.info('applying system configuration for pirogue-admin')
+        try:
+            operating_mode = OperatingMode(variables['_OPERATING_MODE'])
+        except ValueError:
+            raise RuntimeError(f'unknown operating mode: {variables["_OPERATING_MODE"]}')
+
+        if operating_mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
+            raise NotImplementedError(f'support for {operating_mode} is missing at this point')
+
+        self.configure_isolated_interface(
+            variables['ISOLATED_NETWORK_IFACE'],
+            variables['ISOLATED_NETWORK_ADDR'],
+            ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
+        )
+
+    def configure_isolated_interface(self, interface, address, prefixlen):
+        """
+        Configure the isolated interface.
+
+        NOTE: If we're switching between interfaces, there's no way of knowing
+        at this point. So we might need to have some explicit deconfiguration
+        step if that needs to be supported.
+        """
+        # FIXME: We only support one specific case initially:
+        if self.stacks != [NetworkStack.IFUPDOWN]:
+            raise NotImplementedError(f'support for stacks={self.stacks} is missing at this point')
+
+        # For now, assume the snippets directory exists and is referenced in the
+        # main /e/n/i file, even if we might want to add some checks to be extra
+        # sure.
+        interface_path = Path('/etc/network/interfaces.d') / interface
+        interface_path.write_text(
+            f'# Written by pirogue-admin:\n'
+            f'auto {interface}\n'
+            f'iface {interface} inet static\n'
+            f'  address {address}/{prefixlen}\n'
+        )
+
+        # Declassify the file as it doesn't contain any secrets (Debian-provided
+        # Raspberry Pi images have the wlan0 snippet restricted):
+        interface_path.chmod(0o644)
+
+        # Make sure the interface is configured right away, without relying on
+        # ifupdown tools (ifdown's and ifup's internal state might make this
+        # hard):
+        subprocess.run(['ip', 'address', 'add', f'{address}/{prefixlen}', 'dev', interface],
+                       check=False)
+
+    def get_needed_variables(self) -> list[str]:
+        """
+        Return all required variables for this SystemConfig instance.
+        """
+        return sorted(self.variables)
+
+
 if __name__ == '__main__':
     import pprint
     print('Check running on Pi:')
