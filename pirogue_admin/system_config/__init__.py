@@ -11,7 +11,9 @@ It implements:
  - suggesting the right mode based on what is detected.
 """
 
+import ipaddress
 import json
+import logging
 import subprocess
 from enum import Enum
 from pathlib import Path
@@ -274,6 +276,38 @@ def detect_raspberry_hardware() -> bool:
     if compatible_text in models:
         return True
     return False
+
+
+def detect_ipv4_networks(interface: str) -> List[str]:
+    """
+    Return a list of CIDR networks for the specified interface.
+
+    We would usually expect a single network, but non-trivial setups might
+    involved having several IP addresses on a single interface. And we want to
+    use that information to pick non-conflicting settings for the isolated
+    network.
+    """
+    try:
+        networks = set()
+        ip_json = subprocess.check_output([
+            'ip', '--json', 'addr', 'show', 'dev', interface
+        ]).decode()
+        ip_output = json.loads(ip_json)
+        # We expect a single interface here as we used "dev interface":
+        for interface_info in ip_output:
+            # But we might have several addr_info:
+            for addr_info in interface_info['addr_info']:
+                if addr_info['family'] != 'inet':
+                    continue
+                # Get the network out of the address plus prefix information,
+                # turning off strict mode since host bits are set:
+                network = ipaddress.IPv4Network(f'{addr_info["local"]}/{addr_info["prefixlen"]}',
+                                                strict=False)
+                logging.info('spotting network: %s', network)
+                networks.add(str(network))
+        return sorted(networks)
+    except BaseException as exception:
+        raise RuntimeError(f'unable to detect IPv4 networks: {exception}')
 
 
 if __name__ == '__main__':
