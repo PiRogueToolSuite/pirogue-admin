@@ -7,6 +7,7 @@ Known limitations:
 """
 
 import argparse
+import logging
 import os
 import sys
 from typing import TextIO
@@ -145,6 +146,7 @@ def main():
     ADMIN_VAR_DIR = os.getenv('PIROGUE_ADMIN_VAR_DIR', ADMIN_VAR_DIR)
     WORKING_ROOT_DIR = os.getenv('PIROGUE_WORKING_ROOT_DIR', WORKING_ROOT_DIR)
 
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--check', action='store_true',
                         help='check consistency of all metadata files')
