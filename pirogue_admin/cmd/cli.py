@@ -35,7 +35,8 @@ def check_consistency(c_ctx: ConfigurationContext):
     Grafana-regex matches, etc.), and more about actions and conditions.
     """
     loader = PackageConfigLoader(c_ctx)
-    print(loader.configs)
+    logging.info(loader.system_config)
+    logging.info(loader.configs)
     needed = [x for x in loader.get_needed_variables()
               if x not in loader.variables and x not in loader.current_config]
 
