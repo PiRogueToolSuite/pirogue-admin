@@ -11,7 +11,6 @@ import hashlib
 import os
 import shlex
 import subprocess
-from io import TextIOWrapper
 from pathlib import Path
 from dataclasses import dataclass
 from typing import TextIO
@@ -72,8 +71,7 @@ class ConfigurationContext:
         """
         if self.dry_run:
             return ConfigurationContext.path_concat(os.getcwd(), 'dry-run')
-        else:
-            return self.pirogue_working_root_dir
+        return self.pirogue_working_root_dir
 
     @property
     def admin_dir(self) -> str:
@@ -81,7 +79,8 @@ class ConfigurationContext:
         Returns the PiRogue share/admin directory depending on the current
         PIROGUE_WORKING_ROOT_DIR configuration.
         """
-        return ConfigurationContext.path_concat(self.pirogue_working_root_dir, self.pirogue_admin_dir)
+        return ConfigurationContext.path_concat(self.pirogue_working_root_dir,
+                                                self.pirogue_admin_dir)
 
     @property
     def var_dir(self) -> str:
@@ -89,7 +88,8 @@ class ConfigurationContext:
         Returns the PiRogue var/admin directory depending on the current
         PIROGUE_WORKING_ROOT_DIR configuration.
         """
-        return ConfigurationContext.path_concat(self.pirogue_working_root_dir, self.pirogue_var_dir)
+        return ConfigurationContext.path_concat(self.pirogue_working_root_dir,
+                                                self.pirogue_var_dir)
 
     @property
     def write_var_dir(self) -> str:
@@ -98,8 +98,7 @@ class ConfigurationContext:
         """
         if self.dry_run:
             return ConfigurationContext.path_concat(self.root_dir, self.pirogue_var_dir)
-        else:
-            return self.var_dir
+        return self.var_dir
 
     def __repr__(self):
         return f"ConfigurationContext(" \
@@ -327,7 +326,8 @@ class PackageConfigLoader:
         self.ctx = ctx
 
         self.configs: list[PackageConfig] = []
-        for item in [path for path in Path(self.ctx.admin_dir).glob('*') if path.is_dir() or path.is_symlink()]:
+        for item in [path for path in Path(self.ctx.admin_dir).glob('*')
+                     if path.is_dir() or path.is_symlink()]:
             self.configs.append(PackageConfig(self.ctx, item))
 
         self.variables: dict[str, str] = {}
@@ -337,11 +337,8 @@ class PackageConfigLoader:
                     raise ValueError(f'default variable {variable} redefined in {config.package}')
                 self.variables[variable] = value
 
+        # Load current config based on CLI flags and on config file's presence:
         self.current_config: dict[str, str] = {}
-        self.load_current_configuration_state()
-
-    def load_current_configuration_state(self):
-
         if self.ctx.from_scratch:
             print('Loading current config (from scratch): empty')
             return
@@ -353,8 +350,8 @@ class PackageConfigLoader:
 
         loaded_current_config = yaml.safe_load(current_config_path.read_text())
         if isinstance(loaded_current_config, dict):  # Prevents existing but empty file
-            for k, v in loaded_current_config.items():
-                self.current_config[k] = v
+            for key, value in loaded_current_config.items():
+                self.current_config[key] = value
 
         print('Loading current config:', self.current_config)
 
@@ -364,10 +361,11 @@ class PackageConfigLoader:
 
         :return a dictionary structure of the configuration
         """
-        by_package = dict()
-        by_file = dict()
-        by_variable = dict()
-        by_action = dict()
+        # Accept (very) short names in this function => pylint: disable=invalid-name
+        by_package = {}
+        by_file = {}
+        by_variable = {}
+        by_action = {}
 
         for s in self.configs:
             by_package[s.package] = {
@@ -424,7 +422,8 @@ class PackageConfigLoader:
         # FIXME: Find a way to avoid set() conversion to list()
         # yaml dumps set()s differently than list()s:
         # yaml appends '!!set' keyword to all set() dumps
-        # it should be possible to tweak yaml.dump invocation with some arguments to avoid this behavior.
+        # it should be possible to tweak yaml.dump invocation with some arguments to avoid this
+        # behavior.
         for s in whole_map:
             for k in whole_map[s]:
                 for fk in whole_map[s][k]:
@@ -435,9 +434,12 @@ class PackageConfigLoader:
 
     def dump_current_configuration(self, output: TextIO, notice_preamble: bool = False):
         """
-        Writes the current configuration set to the given output stream. Can write user notice as header in the dump.
+        Writes the current configuration set to the given output stream. Can
+        write user notice as header in the dump.
+
         :param output: a valid text output stream
         :param notice_preamble: appends a 'dot not edit' user header notice if True
+
         """
         if notice_preamble:
             output.write('# This file is generated\n')
@@ -482,7 +484,8 @@ class PackageConfigLoader:
             raise ValueError(f'missing variables: {missing}')
 
         if self.ctx.dry_run:
-            print(f'notice: in dry-run mode, all files will be written locally to: {self.ctx.root_dir}')
+            print(f'notice: in dry-run mode, all files will be written locally to: '
+                  f'{self.ctx.root_dir}')
 
         # Iterate over AdminConfig instances sorting them alphabetically, but we
         # could introduce some priority/order if needed:
