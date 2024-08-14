@@ -131,10 +131,12 @@ def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
 
     yml_style_config = yaml.safe_load(in_fd)
 
-    print('Applying:', yml_style_config)
+    logging.info('Applying: %s', yml_style_config)
 
     loader = PackageConfigLoader(c_ctx)
     loader.apply_configuration(yml_style_config)
+
+    logging.info('Applied!')
 
 
 def generate_definition_tree(c_ctx: ConfigurationContext, out_fd: TextIO):
