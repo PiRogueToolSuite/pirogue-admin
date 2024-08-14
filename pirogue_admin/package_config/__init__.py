@@ -198,6 +198,16 @@ class PackageConfig:
                 subprocess.check_call(shlex.split(action))
             print(f'running {shlex.split(action)}: done.')
 
+    def get_needed_variables(self) -> list[str]:
+        """
+        Return all required variables for this PackageConfig instance.
+        """
+        variables = set()
+        for f in self.files:
+            for variable in f['variables']:
+                variables.add(variable['name'])
+        return sorted(variables)
+
     def parse_index(self, index: Path):
         """
         Parse the top level: check keys, then traverse.
@@ -451,15 +461,14 @@ class PackageConfigLoader:
                        encoding="utf-8",
                        allow_unicode=True)
 
-    def get_needed_variables(self):
+    def get_needed_variables(self) -> list[str]:
         """
-        Return all required variables for all PackageConfig instances.
+        Return all required variables for SystemConfig and for all PackageConfig
+        instances.
         """
         variables = []
         for config in self.configs:
-            for f in config.files:
-                for variable in f['variables']:
-                    variables.append(variable['name'])
+            variables.extend(config.get_needed_variables())
         return sorted(set(variables))
 
     def apply_configuration(self, dynamic_variables: dict[str, str]):
