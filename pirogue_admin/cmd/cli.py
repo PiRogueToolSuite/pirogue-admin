@@ -137,17 +137,6 @@ def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
     print('Applying:', yml_style_config)
 
     loader = PackageConfigLoader(c_ctx)
-    # XXX: Maybe implement something to spot variables that are set but not used
-    # anywhere (e.g. WIFI_NETWORK_NAME vs. WIFI_SSID)
-    # loader.apply_configuration({
-    #    'ISOLATED_NETWORK': '10.8.0.0/24',
-    #    'ISOLATED_NETWORK_ADDR': '10.8.0.1',
-    #    'ISOLATED_NETWORK_IFACE': 'enp1s0',
-    #    'EXTERNAL_NETWORK_IFACE': 'enp2s0',
-    #    'DASHBOARD_PASSWORD': 'miaou',
-    #    'WIFI_SSID': 'PiRogue42',
-    # })
-
     loader.apply_configuration(yml_style_config)
 
 
