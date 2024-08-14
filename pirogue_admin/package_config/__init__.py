@@ -79,7 +79,8 @@ class ConfigurationContext:
         Returns the PiRogue share/admin directory depending on the current
         PIROGUE_WORKING_ROOT_DIR configuration.
         """
-        return ConfigurationContext.path_concat(self.pirogue_working_root_dir, self.pirogue_admin_dir)
+        return ConfigurationContext.path_concat(self.pirogue_working_root_dir,
+                                                self.pirogue_admin_dir)
 
     @property
     def var_dir(self) -> str:
@@ -87,7 +88,8 @@ class ConfigurationContext:
         Returns the PiRogue var/admin directory depending on the current
         PIROGUE_WORKING_ROOT_DIR configuration.
         """
-        return ConfigurationContext.path_concat(self.pirogue_working_root_dir, self.pirogue_var_dir)
+        return ConfigurationContext.path_concat(self.pirogue_working_root_dir,
+                                                self.pirogue_var_dir)
 
     @property
     def write_var_dir(self) -> str:
@@ -324,7 +326,8 @@ class PackageConfigLoader:
         self.ctx = ctx
 
         self.configs: list[PackageConfig] = []
-        for item in [path for path in Path(self.ctx.admin_dir).glob('*') if path.is_dir() or path.is_symlink()]:
+        for item in [path for path in Path(self.ctx.admin_dir).glob('*')
+                     if path.is_dir() or path.is_symlink()]:
             self.configs.append(PackageConfig(self.ctx, item))
 
         self.variables: dict[str, str] = {}
@@ -419,7 +422,8 @@ class PackageConfigLoader:
         # FIXME: Find a way to avoid set() conversion to list()
         # yaml dumps set()s differently than list()s:
         # yaml appends '!!set' keyword to all set() dumps
-        # it should be possible to tweak yaml.dump invocation with some arguments to avoid this behavior.
+        # it should be possible to tweak yaml.dump invocation with some arguments to avoid this
+        # behavior.
         for s in whole_map:
             for k in whole_map[s]:
                 for fk in whole_map[s][k]:
@@ -430,9 +434,12 @@ class PackageConfigLoader:
 
     def dump_current_configuration(self, output: TextIO, notice_preamble: bool = False):
         """
-        Writes the current configuration set to the given output stream. Can write user notice as header in the dump.
+        Writes the current configuration set to the given output stream. Can
+        write user notice as header in the dump.
+
         :param output: a valid text output stream
         :param notice_preamble: appends a 'dot not edit' user header notice if True
+
         """
         if notice_preamble:
             output.write('# This file is generated\n')
@@ -477,7 +484,8 @@ class PackageConfigLoader:
             raise ValueError(f'missing variables: {missing}')
 
         if self.ctx.dry_run:
-            print(f'notice: in dry-run mode, all files will be written locally to: {self.ctx.root_dir}')
+            print(f'notice: in dry-run mode, all files will be written locally to: '
+                  f'{self.ctx.root_dir}')
 
         # Iterate over AdminConfig instances sorting them alphabetically, but we
         # could introduce some priority/order if needed:
