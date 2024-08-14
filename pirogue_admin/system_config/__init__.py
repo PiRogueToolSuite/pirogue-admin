@@ -15,7 +15,7 @@ import json
 import subprocess
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 # This isn't a silver bullet but that logic worked well enough in the past:
@@ -198,7 +198,7 @@ class OperatingMode(Enum):
     UNKNOWN = '???'
 
 
-def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
+def suggest_operating_mode() -> Tuple[OperatingMode, Optional[str], List[str]]:
     """
     Implement a best guess based on available interfaces.
 
@@ -208,13 +208,17 @@ def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
 
     At the moment, this doesn't taken into account whether interfaces were
     configured already (by pirogue-admin or someone else).
+
+    Return a mode, the name of the external interface (might be None if we are
+    really unlucky), and a list of candidate interfaces for the isolated
+    network.
     """
     # Better be connected already!
     external = detect_external_interface()
     if external is None:
         return (OperatingMode.UNKNOWN,
-                'no external interface found',
-                'no candidate found')
+                None,
+                [])
 
     # Let's assume we never want to touch the external interface (be it wired,
     # wireless, or something else). Also, it might not show up in weird cases
@@ -228,24 +232,24 @@ def suggest_operating_mode() -> Tuple[OperatingMode, str, str]:
                                   if devtype == DevType.WIRELESS])
     if wireless_interfaces:
         return (OperatingMode.AP,
-                f'external: {external}',
-                f'candidates: {", ".join(wireless_interfaces)}')
+                external,
+                wireless_interfaces)
 
     # 2nd attempt is appliance mode:
     ethernet_interfaces = sorted([iface for iface, devtype in interfaces.items()
                                   if devtype == DevType.ETHERNET])
     if ethernet_interfaces:
         return (OperatingMode.APPLIANCE,
-                f'external: {external}',
-                f'candidates: {", ".join(ethernet_interfaces)}')
+                external,
+                ethernet_interfaces)
 
     # Fallback is vpn mode, we mention possible wireguard interfaces for
     # information, but see this function's docstring.
     wireguard_interfaces = sorted([iface for iface, devtype in interfaces.items()
                                    if devtype == DevType.WIREGUARD])
     return (OperatingMode.VPN,
-            f'external: {external}',
-            f'candidates: {", ".join(wireguard_interfaces)}')
+            external,
+            wireguard_interfaces)
 
 
 def detect_raspberry_hardware() -> bool:
