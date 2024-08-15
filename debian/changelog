@@ -1,3 +1,10 @@
+pirogue-admin (1.0.1) UNRELEASED; urgency=medium
+
+  * Ship pirogue-admin under /usr/sbin instead of /usr/bin. Users should
+    be using commands provided by pirogue-admin-client.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Thu, 15 Aug 2024 14:29:12 +0200
+
 pirogue-admin (1.0.0) bookworm; urgency=medium
 
   * Initial release.
