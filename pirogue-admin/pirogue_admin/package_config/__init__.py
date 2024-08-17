@@ -8,6 +8,7 @@ with a top-level index.yaml file that lists variables, files, and actions.
 
 import copy
 import hashlib
+import logging
 import os
 import shlex
 import subprocess
@@ -253,7 +254,7 @@ class PackageConfig:
            to avoid restarting grafana-server for each and every config file
            it requires).
         """
-        print(f'applying configuration for {self.package}')
+        logging.info('applying configuration for %s', self.package)
 
         root = self.ctx.root_dir
 
@@ -281,21 +282,23 @@ class PackageConfig:
             size2, digest2 = get_size_and_digest(dst)
             if size1 == size2 and digest1 == digest2:
                 continue
-            print(f'{f.dst} changed, scheduling associated actions')
+            logging.info('%s changed, scheduling associated actions', f.dst)
             pending_actions.extend(f.actions)
 
+        # Below we want to keep using f-strings while logging
+        #   pylint: disable=logging-fstring-interpolation
         performed_actions = []
         for action in pending_actions:
             if action in performed_actions:
-                print(f'skipping {action}, already done')
+                logging.info('skipping %s, already done', action)
                 continue
-            print(f'running {shlex.split(action)}')
+            logging.info(f'running {shlex.split(action)}')
             performed_actions.append(action)
             if self.ctx.dry_run:
-                print(f'dry-running {shlex.split(action)} ...')
+                logging.info(f'dry-running {shlex.split(action)} ...')
             else:
                 subprocess.check_call(shlex.split(action))
-            print(f'running {shlex.split(action)}: done.')
+            logging.info(f'running {shlex.split(action)}: done.')
 
     def get_needed_variables(self) -> list[str]:
         """
