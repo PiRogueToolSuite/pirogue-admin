@@ -273,30 +273,69 @@ class PackageConfig:
 
         pending_actions = []
         for f in self.files:
-            template = (self.directory / f.src).read_text()
-            for variable in f.variables:
-                # Initially we were passing only the value for the specific
-                # variable name we were interested in, but at least computing
-                # the DHCP range for dnsmasq requires looking at an extra
-                # variable.
-                #
-                # Therefore, pass all variables as a second argument all the
-                # time, even if only that particular one function requires
-                # looking into the value of a particular one variable, keeping
-                # genericity:
-                value = SUPPORTED_FORMATTERS[ variable['type'] ](variables[variable['name']],
-                                                                 variables)
-                template = template.replace(variable['token'], value)
+            # Design choice: we support having a “condition” attached to a file,
+            # which dictates whether to run “actions” after setting up a file,
+            # or “actions_else”.
+            #
+            # There are two main questions:
+            #  - Should the file's contents and metadata be updated when the
+            #    condition is failed? We might end up with contents that might
+            #    be surprising for unsuspecting users (weird configuration for
+            #    a service that's actually stopped/disabled/masked), but that
+            #    might be better than not having files around at all, or with
+            #    unknown contents?
+            #  - Should actions_else be run conditionally (if file contents
+            #    and/or metadata changed), or should they be run in any case?
+            #
+            # Initial choices:
+            #  - Remove the file.
+            #  - Run actions_else unconditionally.
+            #
+            # Rationales:
+            #  - At least with initial use cases, a failed condition means we
+            #    want to stop/disable/mask a service. There might be no file at
+            #    all in the first place, or no contents change if a file is
+            #    already present (e.g. for a SYSTEM_DNSMASQ flip). And yet, we
+            #    want those actions to run, hence the unconditional running.
+            #  - If we want the conditional actions to run when the flip is
+            #    switched back, we need to make sure the file doesn't stay
+            #    around. Alternatively, we could just run all actions
+            #    unconditionally.
 
-            dst = Path(root + f.dst)
-            size1, digest1 = get_size_and_digest(dst)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            dst.write_text(template)
-            size2, digest2 = get_size_and_digest(dst)
-            if size1 == size2 and digest1 == digest2:
-                continue
-            logging.info('%s changed, scheduling associated actions', f.dst)
-            pending_actions.extend(f.actions)
+            if f.condition is None or SUPPORTED_CONDITIONS[f.condition]['function'](variables):
+                template = (self.directory / f.src).read_text()
+                for variable in f.variables:
+                    # Initially we were passing only the value for the specific
+                    # variable name we were interested in, but at least computing
+                    # the DHCP range for dnsmasq requires looking at an extra
+                    # variable.
+                    #
+                    # Therefore, pass all variables as a second argument all the
+                    # time, even if only that particular one function requires
+                    # looking into the value of a particular one variable, keeping
+                    # genericity:
+                    value = SUPPORTED_FORMATTERS[ variable['type'] ](variables[variable['name']],
+                                                                     variables)
+                    template = template.replace(variable['token'], value)
+
+                # Create/update the file in any case:
+                dst = Path(root + f.dst)
+                size1, digest1 = get_size_and_digest(dst)
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(template)
+                size2, digest2 = get_size_and_digest(dst)
+
+                # Schedule actions or actions_else only if there were changes:
+                if size1 == size2 and digest1 == digest2:
+                    continue
+
+                logging.info('%s=changed, scheduling associated actions', f.dst)
+                pending_actions.extend(f.actions)
+            else:
+                dst = Path(root + f.dst)
+                dst.unlink(missing_ok=True)
+                logging.info('%s=condition failed, scheduling associated actions_else', f.dst)
+                pending_actions.extend(f.actions_else)
 
         # Below we want to keep using f-strings while logging
         #   pylint: disable=logging-fstring-interpolation
