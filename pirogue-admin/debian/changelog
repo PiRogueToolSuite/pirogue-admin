@@ -1,4 +1,4 @@
-pirogue-admin (1.0.1) UNRELEASED; urgency=medium
+pirogue-admin (1.1.0) bookworm; urgency=medium
 
   * Ship pirogue-admin under /usr/sbin instead of /usr/bin. Users should
     be using commands provided by pirogue-admin-client.
@@ -29,7 +29,7 @@ pirogue-admin (1.0.1) UNRELEASED; urgency=medium
     configure the isolated network.
   * Finally, mark APPLIANCE mode as supported.
 
- -- Cyril Brulebois <cyril@debamax.com>  Thu, 15 Aug 2024 14:29:12 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Sat, 17 Aug 2024 18:38:57 +0200
 
 pirogue-admin (1.0.0) bookworm; urgency=medium
 
