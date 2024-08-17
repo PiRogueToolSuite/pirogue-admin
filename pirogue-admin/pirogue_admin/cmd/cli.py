@@ -76,7 +76,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         sys.exit(1)
 
     # This is only temporary:
-    if mode != OperatingMode.AP:
+    if mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
         logging.error('suggested mode is %s, not implemented yet!', mode)
         sys.exit(1)
 
@@ -107,6 +107,13 @@ def autodetect_settings(c_ctx: ConfigurationContext):
     isolated_address = next(isolated_network.hosts())
     logging.info('isolated address picked: %s', isolated_address)
 
+    # Hardcode DNSMASQ for the time being: we absolutely need it in AP mode
+    # (even if users try to disable it), but we might need to disable it in
+    # APPLIANCE mode (e.g. if the isolated network is detected as being
+    # configured through DHCP, we wouldn't want to be running a rogue DHCP
+    # server):
+    dnsmasq = True
+
     print(yaml.safe_dump({
         'ISOLATED_NETWORK': str(isolated_network),
         'ISOLATED_NETWORK_ADDR': str(isolated_address),
@@ -114,6 +121,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         'EXTERNAL_NETWORK_IFACE': external_interface,
         # This is for SystemConfig (pirogue-admin):
         'SYSTEM_OPERATING_MODE': mode.value,
+        'SYSTEM_DNSMASQ': dnsmasq,
     }))
 
 

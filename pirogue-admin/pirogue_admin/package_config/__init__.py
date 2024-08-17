@@ -8,6 +8,7 @@ with a top-level index.yaml file that lists variables, files, and actions.
 
 import copy
 import hashlib
+import logging
 import os
 import shlex
 import subprocess
@@ -18,6 +19,7 @@ from typing import TextIO
 import yaml
 
 from pirogue_admin.system_config import SystemConfig
+from .conditions import SUPPORTED_CONDITIONS
 from .formatters import SUPPORTED_FORMATTERS
 
 
@@ -109,6 +111,126 @@ class ConfigurationContext:
                f"dry_run={self.dry_run} from_scratch={self.from_scratch})"
 
 
+class PackageConfigFile:
+    """
+    File manager for PackageConfig.
+    """
+    def __init__(self,
+                 f: dict,
+                 directory: Path,
+                 actions: dict):
+        # Make sure we don't let any unknown (or typo'd) keys sneak in:
+        known_keys = ['src', 'dst', 'actions', 'actions_else', 'condition', 'variables']
+        unknown_keys = f.keys() - known_keys
+        if unknown_keys:
+            raise RuntimeError(f'unknown keys: {unknown_keys} for file={f}')
+
+        # Copy or initialize with default values:
+        self.src = f.get('src', None)
+        self.dst = f.get('dst', None)
+        self.actions = f.get('actions', [])
+        self.actions_else = f.get('actions_else', [])
+        self.condition = f.get('condition', None)
+        self.variables = f.get('variables', [])
+
+        # Validate all the things!
+        self.validate_src_dst(directory)
+        self.validate_variables()
+        self.validate_actions(actions)
+        self.validate_condition()
+
+    def validate_src_dst(self, directory):
+        """
+        Validate source and destination.
+        """
+        # Absolute must:
+        if not isinstance(self.src, str):
+            raise ValueError('file must have an src and it must be a string')
+        if not isinstance(self.dst, str):
+            raise ValueError('file must have a dst, and it must be a string')
+
+        # Check source, adjust destination (full filename or parent directory):
+        if not (directory / self.src).exists():
+            raise ValueError('file src missing in directory')
+        if self.dst.endswith('/'):
+            self.dst += self.src
+
+    def validate_variables(self):
+        """
+        Validate and adjust variables as needed.
+
+        Variables all have a name, a type that defaults to string (we might want
+        to compute something like a DHCP range for dnsmasq, a matching operator
+        for Grafana, etc.), and a token that defaults to @<variable>@ to make
+        sure we can adjust any kind of configuration file.
+        """
+        if not isinstance(self.variables, list):
+            raise ValueError(f'variables (optional) must be a list, for src={self.src}')
+
+        final_variables = []
+        for variable in self.variables:
+            v = copy.copy(variable)  # pylint: disable=invalid-name
+            # FIXME: Make sure there are no unexpected keys.
+            if 'name' not in variable or not isinstance(variable['name'], str):
+                raise ValueError(f'variable must have a name, and it must be a string in {v}')
+
+            # Optional field; should validate it's a string if present.
+            if 'type' not in variable:
+                v['type'] = 'string'
+            if v['type'] not in SUPPORTED_FORMATTERS:
+                raise ValueError(f'unsupported variable type in {v}')
+
+            # Optional field; should validate it's a string if present.
+            if 'token' not in variable:
+                v['token'] = f'@{variable["name"]}@'
+
+            final_variables.append(v)
+        self.variables = final_variables
+
+    def validate_actions(self, actions):
+        """
+        Validate actions and actions_else, resolving named actions.
+
+        Actions can be of two types:
+         - list of strings (shell commands)
+         - 'name': '<action-name>', leveraging the top-level actions section.
+
+        They're just copied in the former case, they're replaced with the
+        relevant shell command(s) in the latter case.
+        """
+        for attr in ['actions', 'actions_else']:
+            original_actions = getattr(self, attr)
+            final_actions = []
+            if not isinstance(original_actions, list):
+                raise ValueError(f'{attr} (optional) must be a list, for src={self.src}')
+            for action in original_actions:
+                # Easy case:
+                if isinstance(action, str):
+                    final_actions.append(action)
+                    continue
+                if not isinstance(action, dict):
+                    raise ValueError(f'action must be a string or a dict in {action}')
+                if list(action.keys()) != ['name']:
+                    raise ValueError(f'action dict must have exactly one "name" key in {action}')
+                if not isinstance(action['name'], str):
+                    raise ValueError(f'action["name"] must be a string in {action}')
+                if action['name'] not in actions:
+                    raise ValueError(f'action["name"] must be a valid reference in {action}')
+                final_actions.extend(actions[action['name']])
+            setattr(self, attr, final_actions)
+
+    def validate_condition(self):
+        """
+        Validate condition (if any).
+        """
+        if self.condition is None:
+            return
+        if not isinstance(self.condition, str):
+            raise ValueError('condition (optional) must be a string')
+        if self.condition not in SUPPORTED_CONDITIONS:
+            raise ValueError(f'unknown condition {self.condition}')
+
+
 class PackageConfig:
     """
     Things we might have in there:
@@ -129,75 +251,106 @@ class PackageConfig:
         self.directory = directory
         self.package = directory.name
         self.variables: dict[str, str] = {}
-        self.files: list[dict] = []
+        self.files: list[PackageConfigFile] = []
         self.parse_index(directory / 'index.yaml')
 
     def apply_configuration(self, variables: dict[str, str]):
         """
         Create or update files and run associated actions whenever a change
         happens.
+
+        Design decision:
+         - We put all files in place, remembering which actions need to be
+           performed depending on whether they were created/updated.
+         - We run all actions that we remembered this way. While doing so,
+           when we spot an action that has already been run, we skip it (e.g.
+           to avoid restarting grafana-server for each and every config file
+           it requires).
         """
-        print(f'applying configuration for {self.package}')
+        logging.info('applying configuration for %s', self.package)
 
         root = self.ctx.root_dir
 
-        # FIXME: The intent behind factorized "actions" in the dashboard case
-        # wasn't bad, but the implementation won't work as we're going to run
-        # action1 and action2 n times, since those are intertwined. Reordering
-        # action to be able to uniquify the list wouldn't be reasonable (it
-        # could break other usecases)…
-        #
-        # Maybe use action1 && action2 syntax, if that's something we can live
-        # with (via subprocess and/or shlex).
-        #
-        # Actually, the question is whether we want actions to be scheduled for
-        # all files, then run them altogether at the end, we could deduplicate
-        # during the loop, spotting which ones were run already. If we want to
-        # run actions associated with a file right after deploying it, we can't
-        # deduplicate.
-        #
-        # It might be more robust to have all files put into place first, then
-        # run all actions in the end: maybe some services could require several
-        # files to be deployed before being able to (re)start.
         pending_actions = []
         for f in self.files:
-            template = (self.directory / f['src']).read_text()
-            for variable in f['variables']:
-                # Initially we were passing only the value for the specific
-                # variable name we were interested in, but at least computing
-                # the DHCP range for dnsmasq requires looking at an extra
-                # variable.
-                #
-                # Therefore, pass all variables as a second argument all the
-                # time, even if only that particular one function requires
-                # looking into the value of a particular one variable, keeping
-                # genericity:
-                value = SUPPORTED_FORMATTERS[ variable['type'] ](variables[variable['name']],
-                                                                 variables)
-                template = template.replace(variable['token'], value)
+            # Design choice: we support having a “condition” attached to a file,
+            # which dictates whether to run “actions” after setting up a file,
+            # or “actions_else”.
+            #
+            # There are two main questions:
+            #  - Should the file's contents and metadata be updated when the
+            #    condition is failed? We might end up with contents that might
+            #    be surprising for unsuspecting users (weird configuration for
+            #    a service that's actually stopped/disabled/masked), but that
+            #    might be better than not having files around at all, or with
+            #    unknown contents?
+            #  - Should actions_else be run conditionally (if file contents
+            #    and/or metadata changed), or should they be run in any case?
+            #
+            # Initial choices:
+            #  - Remove the file.
+            #  - Run actions_else unconditionally.
+            #
+            # Rationales:
+            #  - At least with initial use cases, a failed condition means we
+            #    want to stop/disable/mask a service. There might be no file at
+            #    all in the first place, or no contents change if a file is
+            #    already present (e.g. for a SYSTEM_DNSMASQ flip). And yet, we
+            #    want those actions to run, hence the unconditional running.
+            #  - If we want the conditional actions to run when the flip is
+            #    switched back, we need to make sure the file doesn't stay
+            #    around. Alternatively, we could just run all actions
+            #    unconditionally.
 
-            dst = Path(root + f['dst'])
-            size1, digest1 = get_size_and_digest(dst)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            dst.write_text(template)
-            size2, digest2 = get_size_and_digest(dst)
-            if size1 == size2 and digest1 == digest2:
-                continue
-            print(f'{f["dst"]} changed, scheduling associated actions')
-            pending_actions.extend(f['actions'])
+            if f.condition is None or SUPPORTED_CONDITIONS[f.condition]['function'](variables):
+                template = (self.directory / f.src).read_text()
+                for variable in f.variables:
+                    # Initially we were passing only the value for the specific
+                    # variable name we were interested in, but at least computing
+                    # the DHCP range for dnsmasq requires looking at an extra
+                    # variable.
+                    #
+                    # Therefore, pass all variables as a second argument all the
+                    # time, even if only that particular one function requires
+                    # looking into the value of a particular one variable, keeping
+                    # genericity:
+                    value = SUPPORTED_FORMATTERS[ variable['type'] ](variables[variable['name']],
+                                                                     variables)
+                    template = template.replace(variable['token'], value)
 
+                # Create/update the file in any case:
+                dst = Path(root + f.dst)
+                size1, digest1 = get_size_and_digest(dst)
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(template)
+                size2, digest2 = get_size_and_digest(dst)
+
+                # Schedule actions or actions_else only if there were changes:
+                if size1 == size2 and digest1 == digest2:
+                    continue
+
+                logging.info('%s=changed, scheduling associated actions', f.dst)
+                pending_actions.extend(f.actions)
+            else:
+                dst = Path(root + f.dst)
+                dst.unlink(missing_ok=True)
+                logging.info('%s=condition failed, scheduling associated actions_else', f.dst)
+                pending_actions.extend(f.actions_else)
+
+        # Below we want to keep using f-strings while logging
+        #   pylint: disable=logging-fstring-interpolation
         performed_actions = []
         for action in pending_actions:
             if action in performed_actions:
-                print(f'skipping {action}, already done')
+                logging.info('skipping %s, already done', action)
                 continue
-            print(f'running {shlex.split(action)}')
+            logging.info(f'running {shlex.split(action)}')
             performed_actions.append(action)
             if self.ctx.dry_run:
-                print(f'dry-running {shlex.split(action)} ...')
+                logging.info(f'dry-running {shlex.split(action)} ...')
             else:
                 subprocess.check_call(shlex.split(action))
-            print(f'running {shlex.split(action)}: done.')
+            logging.info(f'running {shlex.split(action)}: done.')
 
     def get_needed_variables(self) -> list[str]:
         """
@@ -205,8 +358,13 @@ class PackageConfig:
         """
         variables = set()
         for f in self.files:
-            for variable in f['variables']:
+            # Files act as templates and usually require at least one variable:
+            for variable in f.variables:
                 variables.add(variable['name'])
+            # If a condition is present, some variables might be required too:
+            if f.condition:
+                for variable in SUPPORTED_CONDITIONS[f.condition]['variables']:
+                    variables.add(variable)
         return sorted(variables)
 
     def parse_index(self, index: Path):
@@ -222,7 +380,7 @@ class PackageConfig:
         # The actions section is only here to avoid repeating ourselves in the
         # files section, is useful during parsing, but doesn't require storing:
         self.parse_index_variables(meta.get('variables', []))
-        self.parse_index_files(meta.get('files', []), meta.get('actions', {}))
+        self.parse_index_files_and_actions(meta.get('files', []), meta.get('actions', {}))
 
     def parse_index_variables(self, variables: list):
         """
@@ -246,12 +404,18 @@ class PackageConfig:
             # Store if everything looks good:
             self.variables[ variable['name'] ] = variable['default']
 
-    def parse_index_files(self, files: list, actions: dict):
+    def parse_index_files_and_actions(self, files: list, actions: dict):
         """
-        Parse files: list of files with possibly many details.
+        Parse files and actions.
 
-        This includes but is not limited to: src, dst, variables, actions.
+        The actions section might list “named actions” so that the “actions”
+        attribute in several files can point to a given (list of) command(s).
+        Parse it first, and pass it to create the PackageConfigFile instance.
+
+        The files section can list a number of files with various metadata,
+        source, destination, variables, actions, etc.
         """
+        # Parse and validate actions first:
         if actions:
             for key, value in actions.items():
                 if not isinstance(key, str):
@@ -259,72 +423,11 @@ class PackageConfig:
                 if not value or not all(isinstance(s, str) for s in value):
                     raise ValueError(f'action value for key {key} must be a list of strings')
 
-        for orig_f in files:
-            f = copy.copy(orig_f)
-
-            # FIXME: check for unsupported keys
-
-            # Source and destination:
-            if 'src' not in f or not isinstance(f['src'], str):
-                raise ValueError(f'file must have an src, and it must be a string in {f}')
-            if 'dst' not in f or not isinstance(f['dst'], str):
-                raise ValueError(f'file must have a dst, and it must be a string in {f}')
-            # dst can be a full filename or a parent directory, adjust if needed:
-            if f['dst'].endswith('/'):
-                f['dst'] += f['src']
-
-            if not (self.directory / f['src']).exists():
-                raise ValueError(f'file src missing in directory {f}')
-
-            # Variables all have a name, a type that defaults to string (we
-            # might want to compute something like a DHCP range for dnsmasq,
-            # a matching operator for Grafana, etc.), and a token that defaults
-            # to @<variable>@ to make sure we can adjust any kind of
-            # configuration file:
-            if 'variables' in f and not isinstance(f['variables'], list):
-                raise ValueError(f'file must have a variables, and it must be a list in {f}')
-            final_variables = []
-            for variable in f.get('variables', []):
-                v = copy.copy(variable)  # pylint: disable=invalid-name
-                # FIXME: Make sure there are no unexpected keys.
-                if 'name' not in variable or not isinstance(variable['name'], str):
-                    raise ValueError(f'variable must have a name, and it must be a string in {v}')
-
-                # Optional field; should validate it's a string if present.
-                if 'type' not in variable:
-                    v['type'] = 'string'
-                if v['type'] not in SUPPORTED_FORMATTERS:
-                    raise ValueError(f'unsupported variable type in {v}')
-
-                # Optional field; should validate it's a string if present.
-                if 'token' not in variable:
-                    v['token'] = f'@{variable["name"]}@'
-
-                final_variables.append(v)
-            f['variables'] = final_variables
-
-            # Actions can be a list of strings (shell commands) and/or "name":
-            # "action-name" pointers using the actions indirection:
-            final_actions = []
-            if 'actions' not in f or not isinstance(f['actions'], list):
-                raise ValueError(f'file must have an actions, and it must be a list in {f}')
-            for action in f['actions']:
-                # Easy case:
-                if isinstance(action, str):
-                    final_actions.append(action)
-                    continue
-                if not isinstance(action, dict):
-                    raise ValueError(f'action must be a string or a dict in {action}')
-                if list(action.keys()) != ['name']:
-                    raise ValueError(f'action dict must have exactly one "name" key in {action}')
-                if not isinstance(action['name'], str):
-                    raise ValueError(f'action["name"] must be a string in {action}')
-                if action['name'] not in actions:
-                    raise ValueError(f'action["name"] must be a valid reference in {action}')
-                final_actions.extend(actions[action['name']])
-            f['actions'] = final_actions
-
-            self.files.append(f)
+        # Parse and validate files next, passing those actions alongside the
+        # directory (where source files are to be found):
+        for f in files:
+            pcf = PackageConfigFile(f, directory=self.directory, actions=actions)
+            self.files.append(pcf)
 
     def __repr__(self):
         return f'package={self.package}\nvariables={self.variables}\nfiles={self.files}\n'
@@ -392,15 +495,15 @@ class PackageConfigLoader:
                 'actions': set(),
             }
             for f in s.files:
-                by_file[f['dst']] = by_file.get(f['dst']) or {
+                by_file[f.dst] = by_file.get(f.dst) or {
                     'packages': set(),
                     'variables': set(),
                     'actions': set(),
                 }
-                by_file[f['dst']]['packages'].add(s.package)
-                by_package[s.package]['files'].add(f['dst'])
+                by_file[f.dst]['packages'].add(s.package)
+                by_package[s.package]['files'].add(f.dst)
 
-                for v in f['variables']:
+                for v in f.variables:
                     by_variable[v['name']] = by_variable.get(v['name']) or {
                         'packages': set(),
                         'files': set(),
@@ -409,24 +512,24 @@ class PackageConfigLoader:
                     if v['name'] in self.variables:
                         by_variable[v['name']]['default'] = self.variables[v['name']]
                     by_variable[v['name']]['packages'].add(s.package)
-                    by_variable[v['name']]['files'].add(f['dst'])
+                    by_variable[v['name']]['files'].add(f.dst)
 
                     by_package[s.package]['variables'].add(v['name'])
-                    by_file[f['dst']]['variables'].add(v['name'])
+                    by_file[f.dst]['variables'].add(v['name'])
 
-                for a in f['actions']:
+                for a in f.actions:
                     by_action[a] = by_action.get(a, {
                         'packages': set(),
                         'files': set(),
                         'variables': set(),
                     })
                     by_action[a]['packages'].add(s.package)
-                    by_action[a]['files'].add(f['dst'])
+                    by_action[a]['files'].add(f.dst)
 
                     by_package[s.package]['actions'].add(a)
-                    by_file[f['dst']]['actions'].add(a)
+                    by_file[f.dst]['actions'].add(a)
 
-                    for v in f['variables']:
+                    for v in f.variables:
                         by_action[a]['variables'].add(v['name'])
                         by_variable[v['name']]['actions'].add(a)
 

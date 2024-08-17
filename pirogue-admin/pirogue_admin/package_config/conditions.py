@@ -10,6 +10,8 @@ import re
 import subprocess
 from functools import wraps
 
+from pirogue_admin.system_config import OperatingMode, SystemConfig
+
 
 def get_iptables_alternatives_value():
     """
@@ -22,26 +24,39 @@ def get_iptables_alternatives_value():
     raise ValueError('could not determine the current value of the iptables alternatives')
 
 
-# This dict is automatically filled thanks to the decorator used for the
-# following methods:
+# This dict is automatically filled thanks to the decorator (factory) used for
+# the following methods, each condition points to a function and to a list of
+# variables that are required for proper operation.
 SUPPORTED_CONDITIONS = {}
 
 
-def conditioner(func):
+def conditioner(variables: list):
     """
-    Map condition_<name> implementation to each condition <NAME>.
-
-    Note that contrary to formatters, conditions are written in uppercase in the
-    index.yaml files (mainly for visibility).
+    Augment (inner) conditioner decorator with a list of variables.
     """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    SUPPORTED_CONDITIONS[re.sub(r'^condition_', '', func.__name__).upper()] = func
-    return wrapper
+    def conditioner_inner(func):
+        """
+        Map condition_<name> implementation to each condition <NAME>.
+
+        Note that contrary to formatters, conditions are written in uppercase in the
+        index.yaml files (mainly for visibility). We store two things for those: a
+        function to call, and the required variables.
+        """
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        SUPPORTED_CONDITIONS[re.sub(r'^condition_', '', func.__name__).upper()] = {
+            'function': func,
+            'variables': variables,
+        }
+        return wrapper
+    return conditioner_inner
 
 
-@conditioner
+@conditioner([
+    f'{SystemConfig.PREFIX}OPERATING_MODE',
+    f'{SystemConfig.PREFIX}DNSMASQ',
+])
 def condition_dnsmasq_needed(variables: dict[str, str]):
     """
     This one depends on the selected mode of operation, which doesn't appear
@@ -53,22 +68,23 @@ def condition_dnsmasq_needed(variables: dict[str, str]):
     isolated network. This could be managed by a different equipment, e.g.
     a physical access point deals with those topics, and we only collect get the
     traffic routed through us.
-
     """
-    # FIXME (again): let's pretend pirogue-admin supports internal variables,
-    # whose names are prefixed with an underscore. _MODE is an absolute must,
-    # while _DNSMASQ might only stay optional (let's go for a safe default
-    # value):
-    if variables['_MODE'] == 'access-point':
+    mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
+    if mode == OperatingMode.AP:
+        # Ignore SYSTEM_DNSMASQ variable:
         return True
-    if variables['_MODE'] == 'appliance':
-        if variables.get('_DNSMASQ', False):
-            return True
+
+    if mode == OperatingMode.APPLIANCE:
+        # Obey SYSTEM_DNSMASQ variable:
+        return variables[f'{SystemConfig.PREFIX}DNSMASQ'] is True
+
     # FIXME: Adjust once we know more about the inner workings of wireguard.
     return False
 
 
-@conditioner
+@conditioner([
+    f'{SystemConfig.PREFIX}OPERATING_MODE',
+])
 def condition_hostapd_needed(variables: dict[str, str]):
     """
     This one depends on the selected mode of operation, which doesn't appear
@@ -77,14 +93,13 @@ def condition_hostapd_needed(variables: dict[str, str]):
 
     Basically: only if the “access point” mode is selected.
     """
-    # FIXME (again): let's pretend pirogue-admin supports internal variables,
-    # whose names are prefixed with an underscore.
-    if variables['_MODE'] == 'access-point':
+    mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
+    if mode == OperatingMode.AP:
         return True
     return False
 
 
-@conditioner
+@conditioner([])
 def condition_iptables_mode(_variables: dict[str, str]):
     """
     Ask the alternatives system about the iptables/nftables situation.
@@ -94,7 +109,7 @@ def condition_iptables_mode(_variables: dict[str, str]):
     return get_iptables_alternatives_value().endswith('-legacy')
 
 
-@conditioner
+@conditioner([])
 def condition_nftables_mode(_variables: dict[str, str]):
     """
     Ask the alternatives system about the iptables/nftables situation.

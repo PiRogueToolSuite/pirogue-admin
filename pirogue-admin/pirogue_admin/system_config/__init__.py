@@ -24,6 +24,10 @@ from typing import List, Optional, Tuple
 # This isn't a silver bullet but that logic worked well enough in the past:
 DEFAULT_TARGET_IP = '1.1.1.1'
 
+# Where to store systemd-networkd settings. That must be ordered before the
+# default 10-netplan-all-{en,eth}.network (as shipped in Debian 12):
+SYSTEMD_NETWORKD_CONF = '/etc/systemd/network/01-pirogue.network'
+
 
 class DevType(Enum):
     """
@@ -407,30 +411,51 @@ class SystemConfig:
         at this point. So we might need to have some explicit deconfiguration
         step if that needs to be supported.
         """
-        # FIXME: We only support one specific case initially:
-        if self.stacks != [NetworkStack.IFUPDOWN]:
+        if self.stacks == [NetworkStack.IFUPDOWN]:
+            # For now, assume the snippets directory exists and is referenced in the
+            # main /e/n/i file, even if we might want to add some checks to be extra
+            # sure.
+            interface_path = Path('/etc/network/interfaces.d') / interface
+            interface_path.write_text(
+                f'# Written by pirogue-admin:\n'
+                f'auto {interface}\n'
+                f'iface {interface} inet static\n'
+                f'  address {address}/{prefixlen}\n'
+            )
+
+            # Declassify the file as it doesn't contain any secrets (Debian-provided
+            # Raspberry Pi images have the wlan0 snippet restricted):
+            interface_path.chmod(0o644)
+
+            # Make sure the interface is configured right away, without relying on
+            # ifupdown tools (ifdown's and ifup's internal state might make this
+            # hard):
+            subprocess.run(['ip', 'address', 'add', f'{address}/{prefixlen}', 'dev', interface],
+                           check=False)
+
+        elif self.stacks == [NetworkStack.NETWORKD_RESOLVED]:
+            # FIXME: We could perform some introspection to see if and how the
+            # interface is configured, but let's go for a direct configuration
+            # for the time being.
+            #
+            # FIXME: We should perform some deconfiguration if we already had
+            # a different interface in that file.
+            Path(SYSTEMD_NETWORKD_CONF).write_text(
+                f'# Written by pirogue-admin:\n'
+                f'[Match]\n'
+                f'Name={interface}\n'
+                f'\n'
+                f'[Network]\n'
+                f'Address={address}/{prefixlen}\n'
+            )
+
+            # That seems to be sufficient, at least to configure an (otherwise)
+            # unconfigured interface:
+            subprocess.check_call(['networkctl', 'reload'])
+
+        else:
             raise NotImplementedError(f'support for stacks={self.stacks} is missing at this point')
 
-        # For now, assume the snippets directory exists and is referenced in the
-        # main /e/n/i file, even if we might want to add some checks to be extra
-        # sure.
-        interface_path = Path('/etc/network/interfaces.d') / interface
-        interface_path.write_text(
-            f'# Written by pirogue-admin:\n'
-            f'auto {interface}\n'
-            f'iface {interface} inet static\n'
-            f'  address {address}/{prefixlen}\n'
-        )
-
-        # Declassify the file as it doesn't contain any secrets (Debian-provided
-        # Raspberry Pi images have the wlan0 snippet restricted):
-        interface_path.chmod(0o644)
-
-        # Make sure the interface is configured right away, without relying on
-        # ifupdown tools (ifdown's and ifup's internal state might make this
-        # hard):
-        subprocess.run(['ip', 'address', 'add', f'{address}/{prefixlen}', 'dev', interface],
-                       check=False)
 
     def get_needed_variables(self) -> list[str]:
         """
