@@ -117,7 +117,11 @@ class PackageConfigFile:
                  f: dict,
                  directory: Path,
                  actions: dict):
-        # FIXME: check for unsupported keys
+        # Make sure we don't let any unknown (or typo'd) keys sneak in:
+        known_keys = ['src', 'dst', 'actions', 'actions_else', 'condition', 'variables']
+        unknown_keys = f.keys() - known_keys
+        if unknown_keys:
+            raise RuntimeError(f'unknown keys: {unknown_keys} for file={f}')
 
         # Copy or initialize with default values:
         self.src = f.get('src', None)
