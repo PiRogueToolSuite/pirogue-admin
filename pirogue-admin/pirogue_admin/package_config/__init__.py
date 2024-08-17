@@ -19,6 +19,7 @@ from typing import TextIO
 import yaml
 
 from pirogue_admin.system_config import SystemConfig
+from .conditions import SUPPORTED_CONDITIONS
 from .formatters import SUPPORTED_FORMATTERS
 
 
@@ -136,6 +137,7 @@ class PackageConfigFile:
         self.validate_src_dst(directory)
         self.validate_variables()
         self.validate_actions(actions)
+        self.validate_condition()
 
     def validate_src_dst(self, directory):
         """
@@ -216,6 +218,17 @@ class PackageConfigFile:
                     raise ValueError(f'action["name"] must be a valid reference in {action}')
                 final_actions.extend(actions[action['name']])
             setattr(self, attr, final_actions)
+
+    def validate_condition(self):
+        """
+        Validate condition (if any).
+        """
+        if self.condition is None:
+            return
+        if not isinstance(self.condition, str):
+            raise ValueError('condition (optional) must be a string')
+        if self.condition not in SUPPORTED_CONDITIONS:
+            raise ValueError(f'unknown condition {self.condition}')
 
 
 class PackageConfig:
