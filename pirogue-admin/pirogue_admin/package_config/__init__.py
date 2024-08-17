@@ -319,8 +319,13 @@ class PackageConfig:
         """
         variables = set()
         for f in self.files:
+            # Files act as templates and usually require at least one variable:
             for variable in f.variables:
                 variables.add(variable['name'])
+            # If a condition is present, some variables might be required too:
+            if f.condition:
+                for variable in SUPPORTED_CONDITIONS[f.condition]['variables']:
+                    variables.add(variable)
         return sorted(variables)
 
     def parse_index(self, index: Path):
