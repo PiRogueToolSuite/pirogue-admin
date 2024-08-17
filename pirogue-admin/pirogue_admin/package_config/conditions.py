@@ -10,6 +10,8 @@ import re
 import subprocess
 from functools import wraps
 
+from pirogue_admin.system_config import OperatingMode, SystemConfig
+
 
 def get_iptables_alternatives_value():
     """
@@ -53,17 +55,13 @@ def condition_dnsmasq_needed(variables: dict[str, str]):
     isolated network. This could be managed by a different equipment, e.g.
     a physical access point deals with those topics, and we only collect get the
     traffic routed through us.
-
     """
-    # FIXME (again): let's pretend pirogue-admin supports internal variables,
-    # whose names are prefixed with an underscore. _MODE is an absolute must,
-    # while _DNSMASQ might only stay optional (let's go for a safe default
-    # value):
-    if variables['_MODE'] == 'access-point':
+    mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
+    if mode == OperatingMode.AP:
         return True
-    if variables['_MODE'] == 'appliance':
-        if variables.get('_DNSMASQ', False):
-            return True
+    if mode == OperatingMode.APPLIANCE:
+        # FIXME: Add support for f'{SystemConfig.PREFIX}DNSMASQ' bool?
+        return True
     # FIXME: Adjust once we know more about the inner workings of wireguard.
     return False
 
@@ -77,9 +75,8 @@ def condition_hostapd_needed(variables: dict[str, str]):
 
     Basically: only if the “access point” mode is selected.
     """
-    # FIXME (again): let's pretend pirogue-admin supports internal variables,
-    # whose names are prefixed with an underscore.
-    if variables['_MODE'] == 'access-point':
+    mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
+    if mode == OperatingMode.AP:
         return True
     return False
 
