@@ -244,29 +244,19 @@ class PackageConfig:
         """
         Create or update files and run associated actions whenever a change
         happens.
+
+        Design decision:
+         - We put all files in place, remembering which actions need to be
+           performed depending on whether they were created/updated.
+         - We run all actions that we remembered this way. While doing so,
+           when we spot an action that has already been run, we skip it (e.g.
+           to avoid restarting grafana-server for each and every config file
+           it requires).
         """
         print(f'applying configuration for {self.package}')
 
         root = self.ctx.root_dir
 
-        # FIXME: The intent behind factorized "actions" in the dashboard case
-        # wasn't bad, but the implementation won't work as we're going to run
-        # action1 and action2 n times, since those are intertwined. Reordering
-        # action to be able to uniquify the list wouldn't be reasonable (it
-        # could break other usecases)…
-        #
-        # Maybe use action1 && action2 syntax, if that's something we can live
-        # with (via subprocess and/or shlex).
-        #
-        # Actually, the question is whether we want actions to be scheduled for
-        # all files, then run them altogether at the end, we could deduplicate
-        # during the loop, spotting which ones were run already. If we want to
-        # run actions associated with a file right after deploying it, we can't
-        # deduplicate.
-        #
-        # It might be more robust to have all files put into place first, then
-        # run all actions in the end: maybe some services could require several
-        # files to be deployed before being able to (re)start.
         pending_actions = []
         for f in self.files:
             template = (self.directory / f.src).read_text()
