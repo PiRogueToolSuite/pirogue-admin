@@ -55,6 +55,7 @@ def conditioner(variables: list):
 
 @conditioner([
     f'{SystemConfig.PREFIX}OPERATING_MODE',
+    f'{SystemConfig.PREFIX}DNSMASQ',
 ])
 def condition_dnsmasq_needed(variables: dict[str, str]):
     """
@@ -70,10 +71,13 @@ def condition_dnsmasq_needed(variables: dict[str, str]):
     """
     mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
     if mode == OperatingMode.AP:
+        # Ignore SYSTEM_DNSMASQ variable:
         return True
+
     if mode == OperatingMode.APPLIANCE:
-        # FIXME: Add support for f'{SystemConfig.PREFIX}DNSMASQ' bool?
-        return True
+        # Obey SYSTEM_DNSMASQ variable:
+        return variables[f'{SystemConfig.PREFIX}DNSMASQ'] is True
+
     # FIXME: Adjust once we know more about the inner workings of wireguard.
     return False
 
