@@ -76,7 +76,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         sys.exit(1)
 
     # This is only temporary:
-    if mode != OperatingMode.AP:
+    if mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
         logging.error('suggested mode is %s, not implemented yet!', mode)
         sys.exit(1)
 
