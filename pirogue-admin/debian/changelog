@@ -2,6 +2,32 @@ pirogue-admin (1.0.1) UNRELEASED; urgency=medium
 
   * Ship pirogue-admin under /usr/sbin instead of /usr/bin. Users should
     be using commands provided by pirogue-admin-client.
+  * Use the logging module instead of print() in various places.
+  * Add variables support to the SUPPORTED_CONDITIONS dict, and ensure all
+    needed variables can be gathered and checked accordingly.
+  * Add condition validation to the index.yaml parsing.
+  * Add initial support for condition and actions_else, in addition to
+    regular actions support. The combination of actions, condition, and
+    actions_else is going to be very useful to configure and enable
+    a service (if the condition is met), and to deconfigure and disable
+    a service (if it isn't). To make sure we can toggle a condition and
+    have actions run in both cases, it seems easier to have a slight
+    asymmetry:
+     - If the condition is fulfilled, actions are run if the contents of
+       the file change.
+     - If the condition is not fulfilled, the file is removed (not keeping
+       outdated/irrelevant contents around), and actions_else are run
+       unconditionally.
+  * Make the DNSMASQ condition implementation consider the SYSTEM_DNSMASQ
+    variable, but only in the APPLIANCE mode (since the AP mode absolutely
+    requires it).
+  * Hardcode SYSTEM_DNSMASQ in the autodetection code for the time being.
+    Users can turn it off if they so wish. We probably want to move to
+    a different distinction anyway: have dnsmasq available in any case,
+    but only enable DHCP conditionally.
+  * Add initial systemd-networkd/systemd-resolved support, allowing to
+    configure the isolated network.
+  * Finally, mark APPLIANCE mode as supported.
 
  -- Cyril Brulebois <cyril@debamax.com>  Thu, 15 Aug 2024 14:29:12 +0200
 
