@@ -1,3 +1,14 @@
+pirogue-admin (1.2.0) UNRELEASED; urgency=medium
+
+  * Add initial WireGuard support: ship a pirogue-admin-wireguard command,
+    leveraging a new WgManager class, managing the PiRogue-side peer as
+    well as remote peers.
+  * Add qrencode to Depends accordingly.
+  * Ship /var/lib/pirogue/admin(/wireguard) directories in the package.
+  * Add support for detecting the public IPv4 address using icanhazip.com.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Thu, 22 Aug 2024 01:45:43 +0200
+
 pirogue-admin (1.1.0) bookworm; urgency=medium
 
   * Ship pirogue-admin under /usr/sbin instead of /usr/bin. Users should
