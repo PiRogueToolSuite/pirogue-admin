@@ -15,6 +15,7 @@ setup(
     entry_points={
         "console_scripts": [
             "pirogue-admin = pirogue_admin.cmd.cli:main",
+            "pirogue-admin-wireguard = pirogue_admin.cmd.wireguard_cli:main",
         ],
     },
     classifiers=[

@@ -9,6 +9,7 @@ override_dh_install:
 	# Hide pirogue-admin CLI from users (meant for pirogue-base.postinst):
 	mkdir debian/pirogue-admin/usr/sbin
 	mv debian/pirogue-admin/usr/bin/pirogue-admin debian/pirogue-admin/usr/sbin
+	mv debian/pirogue-admin/usr/bin/pirogue-admin-wireguard debian/pirogue-admin/usr/sbin
 
 override_dh_builddeb:
 	dh_builddeb -- -Zxz

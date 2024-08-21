@@ -1,0 +1,73 @@
+"""
+WireGuard admin CLI.
+
+This is mainly to make sure the WgManager class is implemented correctly before
+it's exposed through the gRPC interface.
+"""
+
+import argparse
+import logging
+from pathlib import Path
+
+from pirogue_admin.system_config.wireguard import WgManager
+from pirogue_admin.system_config import detect_external_ipv4_address
+
+
+def main():
+    """
+    Entry point for the WireGuard CLI.
+    """
+    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser()
+    # Manipulate peer(s), with the Python representation:
+    parser.add_argument('--add', type=str)
+    parser.add_argument('--delete', type=int)
+    parser.add_argument('--get', type=int)
+    parser.add_argument('--list', action='store_true')
+    # Generate request peer configuration files:
+    parser.add_argument('--generate-conf', type=int)
+    parser.add_argument('--generate-zip', type=int)
+    parser.add_argument('--generate-qrcode', type=int)
+    args = parser.parse_args()
+
+    # Use strings all the time, making things easier with serialization to and
+    # deserialization from the yaml config file:
+    manager = WgManager(
+        str(detect_external_ipv4_address()),
+        '10.8.0.1',
+        '10.8.0.0/24',
+    )
+
+    # In all cases below, echo the returned object:
+    if args.add:
+        # Support both "this-is-a-comment,public-key==" and "this-is-a-comment"
+        # (as well as "," to generate both the comment and the key pair):
+        if args.add.find(',') != -1:
+            # FIXME: Decide on a comment format, then validate it.
+            comment, public_key = args.add.split(',')[0:2]
+            print(manager.add(comment, public_key))
+        else:
+            # FIXME: Decide on a comment format, then validate it.
+            print(manager.add(args.add, ''))
+    if args.delete:
+        print(manager.delete(args.delete))
+    if args.get:
+        print(manager.get(args.get))
+    if args.list:
+        print(manager.list())
+
+    # In all cases below, generate a WireGuard peer configuration file:
+    def generate_args(arg, extension):
+        # Maybe include the pattern in help strings:
+        config_pattern = 'PiRogue-peer-%d.%s'
+        return arg, Path(config_pattern % (arg, extension))
+    if args.generate_conf:
+        manager.generate_conf(*generate_args(args.generate_conf, 'conf'))
+    if args.generate_zip:
+        manager.generate_zip(*generate_args(args.generate_zip, 'zip'))
+    if args.generate_qrcode:
+        manager.generate_qrcode(*generate_args(args.generate_qrcode, 'png'))
+
+
+if __name__ == '__main__':
+    main()
