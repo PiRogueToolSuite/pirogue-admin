@@ -1,4 +1,4 @@
-pirogue-admin (1.2.0) UNRELEASED; urgency=medium
+pirogue-admin (1.2.0) bookworm; urgency=medium
 
   * Add initial WireGuard support: ship a pirogue-admin-wireguard command,
     leveraging a new WgManager class, managing the PiRogue-side peer as
@@ -7,7 +7,7 @@ pirogue-admin (1.2.0) UNRELEASED; urgency=medium
   * Ship /var/lib/pirogue/admin(/wireguard) directories in the package.
   * Add support for detecting the public IPv4 address using icanhazip.com.
 
- -- Cyril Brulebois <cyril@debamax.com>  Thu, 22 Aug 2024 01:45:43 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Thu, 22 Aug 2024 01:53:11 +0200
 
 pirogue-admin (1.1.0) bookworm; urgency=medium
 
