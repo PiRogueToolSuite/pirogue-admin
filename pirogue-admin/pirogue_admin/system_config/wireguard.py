@@ -7,7 +7,6 @@ should be easy to support both IPv4 and IPv6.
 
 import base64
 import binascii
-import hashlib
 import ipaddress
 import logging
 import zipfile
@@ -17,6 +16,8 @@ from subprocess import check_call, check_output, run, DEVNULL
 from typing import List, Tuple
 
 import yaml
+
+from pirogue_admin.tools import get_size_and_digest
 
 
 WG_ETC_DIR = '/etc/wireguard'
@@ -31,16 +32,6 @@ DEFAULT_WG_PERSISTENT_KEEP_ALIVE = 20
 # This seems to directly impact the size of the generated PNG, e.g. 650×650
 # instead of 195×195 with the default size (3):
 QRENCODE_DOT_SIZE = 10
-
-
-# FIXME: Duplicated from pirogue_admin.package_config
-def get_size_and_digest(path: Path):
-    """
-    Helper function to compare file before/after, using size and one digest algorithm.
-    """
-    if not path.exists():
-        return -1, None
-    return path.stat().st_size, hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
 
 
 @dataclass

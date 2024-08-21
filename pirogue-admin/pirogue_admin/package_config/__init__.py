@@ -18,18 +18,10 @@ from typing import TextIO
 
 import yaml
 
+from pirogue_admin.tools import get_size_and_digest
 from pirogue_admin.system_config import SystemConfig
 from .conditions import SUPPORTED_CONDITIONS
 from .formatters import SUPPORTED_FORMATTERS
-
-
-def get_size_and_digest(path: Path):
-    """
-    Helper function to compare file before/after, using size and one digest algorithm.
-    """
-    if not path.exists():
-        return -1, None
-    return path.stat().st_size, hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
 
 
 @dataclass
