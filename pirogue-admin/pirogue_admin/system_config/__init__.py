@@ -20,6 +20,8 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import requests
+
 
 # This isn't a silver bullet but that logic worked well enough in the past:
 DEFAULT_TARGET_IP = '1.1.1.1'
@@ -313,6 +315,20 @@ def detect_ipv4_networks(interface: str) -> List[str]:
         return sorted(networks)
     except BaseException as exception:
         raise RuntimeError(f'unable to detect IPv4 networks: {exception}')
+
+
+def detect_external_ipv4_address(timeout: int = 30) -> ipaddress.IPv4Address:
+    """
+    Use icanhazip to determine a public IPv4 address.
+    """
+    try:
+        reply = requests.get('http://ipv4.icanhazip.com/', timeout=timeout)
+        reply.raise_for_status()
+        # FIXME: Should we care about multiplicity? At least an empty string
+        # would make IPv4Address() error out because it expects 4 bytes.
+        return ipaddress.IPv4Address(reply.content.decode().rstrip())
+    except BaseException as exception:
+        raise RuntimeError(f'unable to detect public IPv4: {exception}')
 
 
 def pick_isolated_network(external_networks) -> ipaddress.IPv4Network:

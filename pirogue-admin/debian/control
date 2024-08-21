@@ -15,6 +15,7 @@ Rules-Requires-Root: no
 Package: pirogue-admin
 Architecture: all
 Depends:
+ python3-requests,
  python3-yaml,
  ${python3:Depends},
  ${misc:Depends},
