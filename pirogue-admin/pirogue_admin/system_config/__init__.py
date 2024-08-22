@@ -388,6 +388,8 @@ class SystemConfig:
             # This one is just for us and it must be resolvable using the
             # OperatingMode enum:
             f'{SystemConfig.PREFIX}OPERATING_MODE',
+            # This one is tricky, we only require it if OPERATING is VPN:
+            #   'PUBLIC_EXTERNAL_NETWORK_ADDR',
             # FIXME: There is some uncertainty in the appliance mode regarding
             # the interface for the isolated network (which might need being
             # configured as a DHCP client and/or without a DHCP server), but for
@@ -490,6 +492,8 @@ class SystemConfig:
     def get_needed_variables(self) -> list[str]:
         """
         Return all required variables for this SystemConfig instance.
+
+        See __init__()'s docstring for tricky variables.
         """
         return sorted(self.variables)
 
