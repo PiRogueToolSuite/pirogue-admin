@@ -22,6 +22,8 @@ from typing import List, Optional, Tuple
 
 import requests
 
+from pirogue_admin.system_config.wireguard import WgManager
+
 
 # This isn't a silver bullet but that logic worked well enough in the past:
 DEFAULT_TARGET_IP = '1.1.1.1'
@@ -410,14 +412,26 @@ class SystemConfig:
         except ValueError:
             raise RuntimeError(f'unknown operating mode: {requested_operating_mode}')
 
-        if operating_mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
+        if operating_mode in [OperatingMode.AP, OperatingMode.APPLIANCE]:
+            logging.info('configuring the isolated interface')
+            self.configure_isolated_interface(
+                variables['ISOLATED_NETWORK_IFACE'],
+                variables['ISOLATED_NETWORK_ADDR'],
+                ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
+            )
+        elif operating_mode in [OperatingMode.VPN]:
+            # Instantiating the manager should be sufficient to get everything
+            # configured (again):
+            logging.info('configuring the wireguard stack')
+            _manager = WgManager(
+                # Make sure this variable is set, but only in the VPN case:
+                variables['PUBLIC_EXTERNAL_NETWORK_ADDR'],
+                variables['ISOLATED_NETWORK_ADDR'],
+                variables['ISOLATED_NETWORK'],
+            )
+        else:
             raise NotImplementedError(f'support for {operating_mode} is missing at this point')
 
-        self.configure_isolated_interface(
-            variables['ISOLATED_NETWORK_IFACE'],
-            variables['ISOLATED_NETWORK_ADDR'],
-            ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
-        )
 
     def configure_isolated_interface(self, interface, address, prefixlen):
         """

@@ -17,8 +17,10 @@ import yaml
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
 from pirogue_admin.system_config import OperatingMode
 from pirogue_admin.system_config import (detect_ipv4_networks,
+                                         detect_external_ipv4_address,
                                          pick_isolated_network,
                                          suggest_operating_mode,)
+from pirogue_admin.system_config.wireguard import DEFAULT_WG_IFACE, WgManager
 
 WORKING_ROOT_DIR = '/'
 ADMIN_CONFIG_DIR = '/usr/share/pirogue-admin'
@@ -75,23 +77,40 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         logging.error('no external interface found, please check connectivity')
         sys.exit(1)
 
-    # This is only temporary:
-    if mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
-        logging.error('suggested mode is %s, not implemented yet!', mode)
-        sys.exit(1)
+    extras = {}
+    isolated_interface = None
+    if mode in [OperatingMode.AP, OperatingMode.APPLIANCE]:
+        # Let's make sure we've got something to work with:
+        if not isolated_interfaces:
+            logging.error('no candidate interfaces for the isolated network')
+            sys.exit(1)
 
-    # Let's make sure we've got something to work with:
-    if not isolated_interfaces:
-        logging.error('no candidate interfaces for the isolated network')
-        sys.exit(1)
+        # Now arbitrarily focus on the first candidate interface. We might want to
+        # make it possible to prompt here, to distinguish between interactive
+        # detection (an admin can answer questions) and non-interactive detection
+        # (initial installation might be non-interactive).
+        isolated_interface = isolated_interfaces[0]
+        logging.info('external: %s', external_interface)
+        logging.info('isolated: %s', isolated_interface)
+    elif mode in [OperatingMode.VPN]:
+        # We could instantiate the manager to get an interface for the isolated
+        # network but we can just use the default value without doing so. Plus,
+        # users might not use (all) settings returned by the autodetection code
+        # anyway.
+        external_addr = str(detect_external_ipv4_address())
+        extras = {
+            'PUBLIC_EXTERNAL_NETWORK_ADDR': external_addr,
+        }
+        logging.info('public, external address: %s', external_addr)
 
-    # Now arbitrarily focus on the first candidate interface. We might want to
-    # make it possible to prompt here, to distinguish between interactive
-    # detection (an admin can answer questions) and non-interactive detection
-    # (initial installation might be non-interactive).
-    isolated_interface = isolated_interfaces[0]
-    logging.info('external: %s', external_interface)
-    logging.info('isolated: %s', isolated_interface)
+        # For the time being, don't consider any candidate interface and let the
+        # WgManager deal with that on its own when the configuration is going to
+        # get applied
+        isolated_interface = DEFAULT_WG_IFACE
+        logging.info('isolated interface: %s', isolated_interface)
+    else:
+        logging.error('suggested mode is %s, unknown!', mode)
+        sys.exit(1)
 
     # Now we need to find a suitable IP configuration for the isolated network,
     # taking the current configuration of the external interface into account.
@@ -120,6 +139,8 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         'ISOLATED_NETWORK_IFACE': isolated_interface,
         'EXTERNAL_NETWORK_IFACE': external_interface,
         'ENABLE_DHCP': enable_dhcp,
+        # Things that might be accumulated depending on the operating mode:
+        **extras,
         # This is for SystemConfig (pirogue-admin):
         'SYSTEM_OPERATING_MODE': mode.value,
     }))
