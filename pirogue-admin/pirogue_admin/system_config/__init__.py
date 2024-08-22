@@ -434,7 +434,6 @@ class SystemConfig:
         else:
             raise NotImplementedError(f'support for {operating_mode} is missing at this point')
 
-
     def configure_isolated_interface(self, interface, address, prefixlen):
         """
         Configure the isolated interface.
@@ -487,7 +486,6 @@ class SystemConfig:
 
         else:
             raise NotImplementedError(f'support for stacks={self.stacks} is missing at this point')
-
 
     def get_needed_variables(self) -> list[str]:
         """
