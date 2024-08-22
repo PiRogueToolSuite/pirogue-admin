@@ -422,6 +422,12 @@ class SystemConfig:
                 ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
             )
         elif operating_mode in [OperatingMode.VPN]:
+            # Tricky case: could we express that's a needed variable without
+            # looking at the value of OPERATING_MODE?
+            if 'PUBLIC_EXTERNAL_NETWORK_ADDR' not in variables:
+                raise RuntimeError('missing variable (needed in VPN mode): '
+                                   'PUBLIC_EXTERNAL_NETWORK_ADDR')
+
             # Instantiating the manager should be sufficient to get everything
             # configured (again):
             logging.info('configuring the wireguard stack')
