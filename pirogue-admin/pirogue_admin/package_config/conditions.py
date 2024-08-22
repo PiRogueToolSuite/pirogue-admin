@@ -55,35 +55,6 @@ def conditioner(variables: list):
 
 @conditioner([
     f'{SystemConfig.PREFIX}OPERATING_MODE',
-    f'{SystemConfig.PREFIX}DNSMASQ',
-])
-def condition_dnsmasq_needed(variables: dict[str, str]):
-    """
-    This one depends on the selected mode of operation, which doesn't appear
-    anywhere in the variables that have been accumulated from the various
-    index.yaml files.
-
-    Basically: definitely if we're in “access point” mode; but only optionally
-    if we're in “appliance” mode, if admins told us to manage DHCP/DNS on the
-    isolated network. This could be managed by a different equipment, e.g.
-    a physical access point deals with those topics, and we only collect get the
-    traffic routed through us.
-    """
-    mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
-    if mode == OperatingMode.AP:
-        # Ignore SYSTEM_DNSMASQ variable:
-        return True
-
-    if mode == OperatingMode.APPLIANCE:
-        # Obey SYSTEM_DNSMASQ variable:
-        return variables[f'{SystemConfig.PREFIX}DNSMASQ'] is True
-
-    # FIXME: Adjust once we know more about the inner workings of wireguard.
-    return False
-
-
-@conditioner([
-    f'{SystemConfig.PREFIX}OPERATING_MODE',
 ])
 def condition_hostapd_needed(variables: dict[str, str]):
     """

@@ -54,19 +54,24 @@ def format_cidr_network(value: str,
 
 
 @formatter
-def format_dhcp_range_network(value: str,
-                              variables: dict[str, str]):
+def format_dhcp_range_line(value: str,
+                           variables: dict[str, str]):
     """
-    This one is tricky, as it actually requires two values: the network itself,
-    and the PiRogue's own IP address (the computed range cannot contain it).
+    This one is tricky, as it actually requires multiple values: the network
+    itself, the PiRogue's own IP address (the computed range cannot contain it),
+    and whether to enable the DHCP feature in the first place.
 
     This is why in addition to the usual first argument (value = the network we
     want to build a DHCP range for), we look into the second argument (a dict
-    with all variable names/values) to get the PiRogue IP's own IP address.
+    with all variable names/values) to get the PiRogue IP's own IP address,
+    and whether to enable DHCP.
 
     Hardcoding this is a bit nasty, keeps processing index.yaml files (see
     PackageConfig class) manageable.
     """
+
+    if not variables['ENABLE_DHCP']:
+        return '# dhcp-range is disabled'
 
     # Those really should be set/validated by pirogue-admin already, so
     # shouldn't raise any exceptions:
@@ -91,7 +96,7 @@ def format_dhcp_range_network(value: str,
 
     # str(), .compressed, and .exploded are the same for IPv4. Let's go for an
     # explicit str():
-    return f'{str(hosts[0])},{str(hosts[-1])}'
+    return f'dhcp-range={str(hosts[0])},{str(hosts[-1])},24h'
 
 
 @formatter

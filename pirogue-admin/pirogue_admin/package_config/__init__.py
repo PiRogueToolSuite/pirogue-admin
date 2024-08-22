@@ -299,8 +299,8 @@ class PackageConfig:
                 for variable in f.variables:
                     # Initially we were passing only the value for the specific
                     # variable name we were interested in, but at least computing
-                    # the DHCP range for dnsmasq requires looking at an extra
-                    # variable.
+                    # the DHCP range for dnsmasq requires looking at extra
+                    # variables.
                     #
                     # Therefore, pass all variables as a second argument all the
                     # time, even if only that particular one function requires
