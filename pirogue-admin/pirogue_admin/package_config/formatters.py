@@ -41,6 +41,20 @@ def format_string(value: str,
 
 
 @formatter
+def format_bool(value: bool,
+                _variables: dict[str, str]):
+    """
+    For the time being we only have a single bool, and all we need is to make
+    sure it gets turned into a string so that the generic template replacement
+    doesn't bail out.
+
+    Let's go for an explicit conversion via str(), but we could use anything,
+    like a JSON-like representation.
+    """
+    return str(value)
+
+
+@formatter
 def format_cidr_network(value: str,
                         _variables: dict[str, str]):
     """
