@@ -1,4 +1,4 @@
-pirogue-admin (1.2.2) UNRELEASED; urgency=medium
+pirogue-admin (1.2.2) bookworm; urgency=medium
 
   * Bridge the gap between both CLI tools:
      - We could fold pirogue-admin-wireguard into pirogue-admin, but
@@ -15,7 +15,7 @@ pirogue-admin (1.2.2) UNRELEASED; urgency=medium
   * Fix prefix length for AllowedIPs in each [Peer] section “server”-side
     (from /24 to /32).
 
- -- Cyril Brulebois <cyril@debamax.com>  Fri, 23 Aug 2024 03:42:43 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 23 Aug 2024 03:47:11 +0200
 
 pirogue-admin (1.2.1) bookworm; urgency=medium
 
