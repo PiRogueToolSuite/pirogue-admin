@@ -1,3 +1,22 @@
+pirogue-admin (1.2.2) UNRELEASED; urgency=medium
+
+  * Bridge the gap between both CLI tools:
+     - We could fold pirogue-admin-wireguard into pirogue-admin, but
+       that'd require some work, and proper integration is pending via
+       a pirogue-admin server exposing an API through gRPC, via a remote
+       API, and via a local pirogue-admin client.
+     - Let's not spend more time on this right now, and re-use
+       pirogue-admin variables if any, parsing pirogue-admin's config.yaml
+       file manually, and keeping fallback variables if the file is
+       missing or is missing some variables.
+     - This makes it possible for pirogue-base.postinst to leverage
+       pirogue-admin for any of the three supported modes, and for users
+       to manipulate peers using pirogue-admin-wireguard.
+  * Fix prefix length for AllowedIPs in each [Peer] section “server”-side
+    (from /24 to /32).
+
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 23 Aug 2024 03:42:43 +0200
+
 pirogue-admin (1.2.1) bookworm; urgency=medium
 
   * Add initial support for VPN mode to the autodetection code:
