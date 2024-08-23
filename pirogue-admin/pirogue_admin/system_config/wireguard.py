@@ -300,8 +300,7 @@ class WgManager:
             lines.append('[Peer]')
             lines.append(f'PublicKey = {peer.public_key}')
             # IPv4/IPv6: /32
-            lines.append(f'AllowedIPs = {peer.get_ipv4_address(self.config.isolated_network)}'
-                         f'/{WgManager.PREFIXLEN}')
+            lines.append(f'AllowedIPs = {peer.get_ipv4_address(self.config.isolated_network)}/32')
 
         # Atomic write:
         with wg_conf.with_suffix('.new') as new_wg_conf:
