@@ -2,7 +2,13 @@
 WireGuard admin CLI.
 
 This is mainly to make sure the WgManager class is implemented correctly before
-it's exposed through the gRPC interface.
+it's exposed through the gRPC interface, and is usable remotely and locally via
+a dedicated pirogue-admin client.
+
+Until that happens, this CLI can be used to manage peers when pirogue-admin is
+set to the VPN operating mode: some variables are read from pirogue-admin's main
+config.yaml file, using fallback values if the file is missing or doesn't
+contain the required variables.
 """
 
 import argparse
