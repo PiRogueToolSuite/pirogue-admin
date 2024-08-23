@@ -1,3 +1,41 @@
+pirogue-admin (1.2.1) bookworm; urgency=medium
+
+  * Add initial support for VPN mode to the autodetection code:
+     - Implement detect_external_ipv4_address() using icanhazip.com
+     - Use it to set PUBLIC_EXTERNAL_NETWORK_ADDR in the VPN case.
+     - Mark VPN as a supported operating mode accordingly.
+  * Switch from a SYSTEM_DNSMASQ condition to an ENABLE_DHCP variable:
+     - We need DHCP support in the AP case.
+     - We might need to enable OR disable DHCP support in the APPLIANCE
+       case.
+     - We don't need DHCP support in the VPN case (but it doesn't hurt).
+  * Set ENABLE_DHCP to true in all use cases for the time being, and let
+    users disable it if they so wish.
+  * Delete support for the SYSTEM_DNSMASQ condition.
+  * Introduce a bool formatter. While we don't actually use this new
+    ENABLE_DHCP variable (defined as a boolean) anywhere in the templates,
+    we need to build replacement strings for all variables. Settle for
+    using str() on the value, arbitrarily.
+  * Turn format_dhcp_range_network() into format_dhcp_range_line() so that
+    the entirety of the dhcp-range= line (for the dnsmasq snippet) can be
+    controlled; we want to comment it out entirely when ENABLE_DHCP is
+    false. As a side effect, we're moving the “24h” lease validity from
+    the template shipped by pirogue-networking to formatters.py; but that
+    particular combination of variables was weird already anyway.
+  * Add initial support for VPN mode to SystemConfig:
+     - Mention PUBLIC_EXTERNAL_NETWORK_ADDR as being tricky in various
+       comments and docstrings, its being needed depends on the value of
+       a different variable (SYSTEM_OPERATING_MODE). See commit messages
+       for possible solutions.
+     - Add support for VPN mode in apply_configuration: make sure
+       PUBLIC_EXTERNAL_NETWORK_ADDR is set (see above), then instantiate
+       WgManager with it and with the isolated address and network, which
+       should be enough to make sure wg0 comes up, the systemd unit is
+       enabled and started, the private / private key pair is created,
+       etc.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 23 Aug 2024 02:20:46 +0200
+
 pirogue-admin (1.2.0) bookworm; urgency=medium
 
   * Add initial WireGuard support: ship a pirogue-admin-wireguard command,
