@@ -15,8 +15,11 @@ import argparse
 import logging
 from pathlib import Path
 
+import yaml
+
 from pirogue_admin.system_config.wireguard import WgManager
 from pirogue_admin.system_config import detect_external_ipv4_address
+from pirogue_admin.cmd.cli import ADMIN_VAR_DIR
 
 
 def main():
@@ -36,12 +39,32 @@ def main():
     parser.add_argument('--generate-qrcode', type=int)
     args = parser.parse_args()
 
+    # Set fallback values in case pirogue-admin's config.yaml file is missing or
+    # doesn't contain the expected variables:
+    external_ipv4_address = detect_external_ipv4_address()
+    isolated_address = '10.8.0.1'
+    isolated_network = '10.8.0.0/24'
+
+    # Read variables from pirogue-admin's config.yaml file (manually):
+    config_path = Path(ADMIN_VAR_DIR) / 'config.yaml'
+    if config_path.exists():
+        try:
+            config = yaml.safe_load(config_path.read_text())
+            if 'PUBLIC_EXTERNAL_NETWORK_ADDR' in config:
+                external_ipv4_address = config['PUBLIC_EXTERNAL_NETWORK_ADDR']
+            if 'ISOLATED_NETWORK_ADDR' in config:
+                isolated_address = config['ISOLATED_NETWORK_ADDR']
+            if 'ISOLATED_NETWORK' in config:
+                isolated_network = config['ISOLATED_NETWORK']
+        except BaseException:
+            pass
+
     # Use strings all the time, making things easier with serialization to and
-    # deserialization from the yaml config file:
+    # deserialization from the yaml config file used by the WireGuard manager:
     manager = WgManager(
-        str(detect_external_ipv4_address()),
-        '10.8.0.1',
-        '10.8.0.0/24',
+        external_ipv4_address,
+        isolated_address,
+        isolated_network,
     )
 
     # In all cases below, echo the returned object:
