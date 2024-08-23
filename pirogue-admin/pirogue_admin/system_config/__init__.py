@@ -432,7 +432,6 @@ class SystemConfig:
             # configured (again):
             logging.info('configuring the wireguard stack')
             _manager = WgManager(
-                # Make sure this variable is set, but only in the VPN case:
                 variables['PUBLIC_EXTERNAL_NETWORK_ADDR'],
                 variables['ISOLATED_NETWORK_ADDR'],
                 variables['ISOLATED_NETWORK'],
