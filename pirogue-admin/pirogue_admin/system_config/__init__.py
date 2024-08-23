@@ -22,6 +22,8 @@ from typing import List, Optional, Tuple
 
 import requests
 
+from pirogue_admin.system_config.wireguard import WgManager
+
 
 # This isn't a silver bullet but that logic worked well enough in the past:
 DEFAULT_TARGET_IP = '1.1.1.1'
@@ -386,6 +388,8 @@ class SystemConfig:
             # This one is just for us and it must be resolvable using the
             # OperatingMode enum:
             f'{SystemConfig.PREFIX}OPERATING_MODE',
+            # This one is tricky, we only require it if OPERATING is VPN:
+            #   'PUBLIC_EXTERNAL_NETWORK_ADDR',
             # FIXME: There is some uncertainty in the appliance mode regarding
             # the interface for the isolated network (which might need being
             # configured as a DHCP client and/or without a DHCP server), but for
@@ -410,14 +414,31 @@ class SystemConfig:
         except ValueError:
             raise RuntimeError(f'unknown operating mode: {requested_operating_mode}')
 
-        if operating_mode not in [OperatingMode.AP, OperatingMode.APPLIANCE]:
-            raise NotImplementedError(f'support for {operating_mode} is missing at this point')
+        if operating_mode in [OperatingMode.AP, OperatingMode.APPLIANCE]:
+            logging.info('configuring the isolated interface')
+            self.configure_isolated_interface(
+                variables['ISOLATED_NETWORK_IFACE'],
+                variables['ISOLATED_NETWORK_ADDR'],
+                ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
+            )
+        elif operating_mode in [OperatingMode.VPN]:
+            # Tricky case: could we express that's a needed variable without
+            # looking at the value of OPERATING_MODE?
+            if 'PUBLIC_EXTERNAL_NETWORK_ADDR' not in variables:
+                raise RuntimeError('missing variable (needed in VPN mode): '
+                                   'PUBLIC_EXTERNAL_NETWORK_ADDR')
 
-        self.configure_isolated_interface(
-            variables['ISOLATED_NETWORK_IFACE'],
-            variables['ISOLATED_NETWORK_ADDR'],
-            ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
-        )
+            # Instantiating the manager should be sufficient to get everything
+            # configured (again):
+            logging.info('configuring the wireguard stack')
+            _manager = WgManager(
+                # Make sure this variable is set, but only in the VPN case:
+                variables['PUBLIC_EXTERNAL_NETWORK_ADDR'],
+                variables['ISOLATED_NETWORK_ADDR'],
+                variables['ISOLATED_NETWORK'],
+            )
+        else:
+            raise NotImplementedError(f'support for {operating_mode} is missing at this point')
 
     def configure_isolated_interface(self, interface, address, prefixlen):
         """
@@ -472,10 +493,11 @@ class SystemConfig:
         else:
             raise NotImplementedError(f'support for stacks={self.stacks} is missing at this point')
 
-
     def get_needed_variables(self) -> list[str]:
         """
         Return all required variables for this SystemConfig instance.
+
+        See __init__()'s docstring for tricky variables.
         """
         return sorted(self.variables)
 
