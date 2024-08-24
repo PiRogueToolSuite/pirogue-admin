@@ -1,3 +1,10 @@
+pirogue-admin (1.2.3) UNRELEASED; urgency=medium
+
+  * Set PersistentKeepAlive for the PiRogue-side WireGuard peer (“server”)
+    as well (https://github.com/PiRogueToolSuite/pirogue-admin/issues/13).
+
+ -- Cyril Brulebois <cyril@debamax.com>  Sat, 24 Aug 2024 23:58:49 +0200
+
 pirogue-admin (1.2.2) bookworm; urgency=medium
 
   * Bridge the gap between both CLI tools:

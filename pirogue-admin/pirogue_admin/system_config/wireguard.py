@@ -301,6 +301,7 @@ class WgManager:
             lines.append(f'PublicKey = {peer.public_key}')
             # IPv4/IPv6: /32
             lines.append(f'AllowedIPs = {peer.get_ipv4_address(self.config.isolated_network)}/32')
+            lines.append(f'PersistentKeepAlive = {DEFAULT_WG_PERSISTENT_KEEP_ALIVE}')
 
         # Atomic write:
         with wg_conf.with_suffix('.new') as new_wg_conf:
