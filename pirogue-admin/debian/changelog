@@ -1,4 +1,4 @@
-pirogue-admin (1.2.3) UNRELEASED; urgency=medium
+pirogue-admin (1.2.3) bookworm; urgency=medium
 
   * Set PersistentKeepAlive for the PiRogue-side WireGuard peer (“server”)
     as well (https://github.com/PiRogueToolSuite/pirogue-admin/issues/13).
@@ -9,7 +9,7 @@ pirogue-admin (1.2.3) UNRELEASED; urgency=medium
     a warning is logged (without setting a failed return code) if the
     config file is missing.
 
- -- Cyril Brulebois <cyril@debamax.com>  Sat, 24 Aug 2024 23:58:49 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Sun, 25 Aug 2024 01:24:05 +0200
 
 pirogue-admin (1.2.2) bookworm; urgency=medium
 
