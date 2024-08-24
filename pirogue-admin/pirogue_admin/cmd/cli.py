@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import TextIO
 
 import yaml
@@ -168,6 +169,28 @@ def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
     logging.info('Applied!')
 
 
+def redeploy_configuration(c_ctx: ConfigurationContext):
+    """
+    Redeploy the stored configuration.
+
+    This is similar to apply_configuration() except we want to use the
+    configuration that's been stored already.
+    """
+    # Maybe ConfigurationContext should know about config.yaml instead of
+    # duplicating the following in PackageConfigLoader.__init__() and below:
+    current_config_path = Path(c_ctx.var_dir, 'config.yaml')
+    if not current_config_path.exists():
+        # FIXME: Decide before a noisy no-op and a straight-up failure. Remember
+        # the main use case is postinst scripts!
+        logging.warning('Ignoring redeploy request, no configuration file stored!')
+        return
+
+    logging.info('Redeploying: %s', current_config_path)
+    loader = PackageConfigLoader(c_ctx)
+    loader.apply_configuration(yaml.safe_load(current_config_path.read_text()))
+    logging.info('Redeployed!')
+
+
 def generate_definition_tree(c_ctx: ConfigurationContext, out_fd: TextIO):
     """
     Generates a configuration tree description of this pirogue instance.
@@ -227,6 +250,8 @@ def main():
                         help='''apply a new configuration to the system.
                         Configuration is read from an optional input file or stdin (default).
                         Configuration is a set of "KEY: 'value'" pairs''')
+    parser.add_argument('--redeploy', action='store_true',
+                        help='redeploy the current configuration (useful for postinst scripts)')
     parser.add_argument('--configuration-tree', '--tree', '-t',
                         action='store', nargs='?', type=argparse.FileType('w'),
                         default=argparse.SUPPRESS,
@@ -253,6 +278,8 @@ def main():
         autodetect_settings(c_ctx)
     if 'apply' in args:
         apply_configuration(c_ctx, args.apply)
+    if 'redeploy' in args:
+        redeploy_configuration(c_ctx)
     if 'configuration_tree' in args:
         generate_definition_tree(c_ctx, args.configuration_tree)
     if 'current_config' in args:

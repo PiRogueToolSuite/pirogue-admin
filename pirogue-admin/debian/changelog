@@ -2,6 +2,12 @@ pirogue-admin (1.2.3) UNRELEASED; urgency=medium
 
   * Set PersistentKeepAlive for the PiRogue-side WireGuard peer (“server”)
     as well (https://github.com/PiRogueToolSuite/pirogue-admin/issues/13).
+  * Add initial support for `pirogue-admin --redeploy --commit` to be used
+    in postinst scripts when upgrading: everything is deployed again using
+    the stored config.yaml except the WireGuard configuration (see
+    https://github.com/PiRogueToolSuite/pirogue-admin/issues/9). For now,
+    a warning is logged (without setting a failed return code) if the
+    config file is missing.
 
  -- Cyril Brulebois <cyril@debamax.com>  Sat, 24 Aug 2024 23:58:49 +0200
 
