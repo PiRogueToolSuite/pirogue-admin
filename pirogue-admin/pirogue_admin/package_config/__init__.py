@@ -452,12 +452,12 @@ class PackageConfigLoader:
         # Load current config based on CLI flags and on config file's presence:
         self.current_config: dict[str, str] = {}
         if self.ctx.from_scratch:
-            print('Loading current config (from scratch): empty')
+            logging.info('Loading current config (from scratch): empty')
             return
 
         current_config_path = Path(self.ctx.var_dir, 'config.yaml')
         if not current_config_path.exists():
-            print(f"No current configuration: {current_config_path}")
+            logging.info('No current configuration: %s', current_config_path)
             return
 
         loaded_current_config = yaml.safe_load(current_config_path.read_text())
@@ -465,7 +465,7 @@ class PackageConfigLoader:
             for key, value in loaded_current_config.items():
                 self.current_config[key] = value
 
-        print('Loading current config:', self.current_config)
+        logging.info('Loading current config: %s', self.current_config)
 
     def get_configuration_tree(self):
         """
