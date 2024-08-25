@@ -41,7 +41,7 @@ def main():
 
     # Set fallback values in case pirogue-admin's config.yaml file is missing or
     # doesn't contain the expected variables:
-    external_ipv4_address = detect_external_ipv4_address()
+    public_external_address = detect_external_ipv4_address()
     isolated_address = '10.8.0.1'
     isolated_network = '10.8.0.0/24'
 
@@ -51,7 +51,7 @@ def main():
         try:
             config = yaml.safe_load(config_path.read_text())
             if 'PUBLIC_EXTERNAL_ADDRESS' in config:
-                external_ipv4_address = config['PUBLIC_EXTERNAL_ADDRESS']
+                public_external_address = config['PUBLIC_EXTERNAL_ADDRESS']
             if 'ISOLATED_ADDRESS' in config:
                 isolated_address = config['ISOLATED_ADDRESS']
             if 'ISOLATED_NETWORK' in config:
@@ -62,7 +62,7 @@ def main():
     # Use strings all the time, making things easier with serialization to and
     # deserialization from the yaml config file used by the WireGuard manager:
     manager = WgManager(
-        external_ipv4_address,
+        public_external_address,
         isolated_address,
         isolated_network,
     )

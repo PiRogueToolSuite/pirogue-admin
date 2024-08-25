@@ -6,6 +6,9 @@ pirogue-admin (1.3.0) UNRELEASED; urgency=medium
      - ISOLATED_NETWORK_IFACE → ISOLATED_INTERFACE
      - PUBLIC_EXTERNAL_NETWORK_ADDR → PUBLIC_EXTERNAL_ADDRESS
     (https://github.com/PiRogueToolSuite/pirogue-admin/issues/18).
+  * Adjust local variable names accordingly:
+     - external_addr → public_external_address
+     - external_ipv4_address → public_external_address
 
  -- Cyril Brulebois <cyril@debamax.com>  Sun, 25 Aug 2024 05:32:38 +0200
 

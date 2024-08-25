@@ -98,11 +98,11 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         # network but we can just use the default value without doing so. Plus,
         # users might not use (all) settings returned by the autodetection code
         # anyway.
-        external_addr = str(detect_external_ipv4_address())
+        public_external_address = str(detect_external_ipv4_address())
         extras = {
-            'PUBLIC_EXTERNAL_ADDRESS': external_addr,
+            'PUBLIC_EXTERNAL_ADDRESS': public_external_address,
         }
-        logging.info('public, external address: %s', external_addr)
+        logging.info('public, external address: %s', public_external_address)
 
         # For the time being, don't consider any candidate interface and let the
         # WgManager deal with that on its own when the configuration is going to
