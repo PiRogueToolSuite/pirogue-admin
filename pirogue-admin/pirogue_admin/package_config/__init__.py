@@ -7,7 +7,6 @@ with a top-level index.yaml file that lists variables, files, and actions.
 """
 
 import copy
-import hashlib
 import logging
 import os
 import shlex
