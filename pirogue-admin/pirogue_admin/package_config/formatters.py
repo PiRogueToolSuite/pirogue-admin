@@ -90,7 +90,7 @@ def format_dhcp_range_line(value: str,
     # Those really should be set/validated by pirogue-admin already, so
     # shouldn't raise any exceptions:
     network = ipaddress.IPv4Network(value)
-    address = ipaddress.IPv4Address(variables['ISOLATED_NETWORK_ADDR'])
+    address = ipaddress.IPv4Address(variables['ISOLATED_ADDRESS'])
 
     # Let's make sure both are consistent:
     hosts = list(network.hosts())

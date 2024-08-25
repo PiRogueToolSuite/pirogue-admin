@@ -100,7 +100,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         # anyway.
         external_addr = str(detect_external_ipv4_address())
         extras = {
-            'PUBLIC_EXTERNAL_NETWORK_ADDR': external_addr,
+            'PUBLIC_EXTERNAL_ADDRESS': external_addr,
         }
         logging.info('public, external address: %s', external_addr)
 
@@ -136,9 +136,9 @@ def autodetect_settings(c_ctx: ConfigurationContext):
 
     print(yaml.safe_dump({
         'ISOLATED_NETWORK': str(isolated_network),
-        'ISOLATED_NETWORK_ADDR': str(isolated_address),
-        'ISOLATED_NETWORK_IFACE': isolated_interface,
-        'EXTERNAL_NETWORK_IFACE': external_interface,
+        'ISOLATED_ADDRESS': str(isolated_address),
+        'ISOLATED_INTERFACE': isolated_interface,
+        'EXTERNAL_INTERFACE': external_interface,
         'ENABLE_DHCP': enable_dhcp,
         # Things that might be accumulated depending on the operating mode:
         **extras,

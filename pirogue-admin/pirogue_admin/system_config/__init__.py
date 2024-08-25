@@ -137,7 +137,7 @@ def detect_external_interface(target_ip: str = DEFAULT_TARGET_IP) -> Optional[st
 
     # If we are curious, we have more information in there, including the
     # gateway's IP and our own source IP (in case we need to introduce an
-    # EXTERNAL_NETWORK_ADDR variable):
+    # EXTERNAL_ADDRESS variable):
     return route_info[0]['dev']
 
 
@@ -389,14 +389,14 @@ class SystemConfig:
             # OperatingMode enum:
             f'{SystemConfig.PREFIX}OPERATING_MODE',
             # This one is tricky, we only require it if OPERATING is VPN:
-            #   'PUBLIC_EXTERNAL_NETWORK_ADDR',
+            #   'PUBLIC_EXTERNAL_ADDRESS',
             # FIXME: There is some uncertainty in the appliance mode regarding
             # the interface for the isolated network (which might need being
             # configured as a DHCP client and/or without a DHCP server), but for
             # the time being, assume we do manage its configuration statically.
             'ISOLATED_NETWORK',
-            'ISOLATED_NETWORK_ADDR',
-            'ISOLATED_NETWORK_IFACE',
+            'ISOLATED_ADDRESS',
+            'ISOLATED_INTERFACE',
         ]
         self.stacks = detect_network_stacks()
 
@@ -417,23 +417,23 @@ class SystemConfig:
         if operating_mode in [OperatingMode.AP, OperatingMode.APPLIANCE]:
             logging.info('configuring the isolated interface')
             self.configure_isolated_interface(
-                variables['ISOLATED_NETWORK_IFACE'],
-                variables['ISOLATED_NETWORK_ADDR'],
+                variables['ISOLATED_INTERFACE'],
+                variables['ISOLATED_ADDRESS'],
                 ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
             )
         elif operating_mode in [OperatingMode.VPN]:
             # Tricky case: could we express that's a needed variable without
             # looking at the value of OPERATING_MODE?
-            if 'PUBLIC_EXTERNAL_NETWORK_ADDR' not in variables:
+            if 'PUBLIC_EXTERNAL_ADDRESS' not in variables:
                 raise RuntimeError('missing variable (needed in VPN mode): '
-                                   'PUBLIC_EXTERNAL_NETWORK_ADDR')
+                                   'PUBLIC_EXTERNAL_ADDRESS')
 
             # Instantiating the manager should be sufficient to get everything
             # configured (again):
             logging.info('configuring the wireguard stack')
             _manager = WgManager(
-                variables['PUBLIC_EXTERNAL_NETWORK_ADDR'],
-                variables['ISOLATED_NETWORK_ADDR'],
+                variables['PUBLIC_EXTERNAL_ADDRESS'],
+                variables['ISOLATED_ADDRESS'],
                 variables['ISOLATED_NETWORK'],
             )
         else:

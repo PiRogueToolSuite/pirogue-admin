@@ -50,10 +50,10 @@ def main():
     if config_path.exists():
         try:
             config = yaml.safe_load(config_path.read_text())
-            if 'PUBLIC_EXTERNAL_NETWORK_ADDR' in config:
-                external_ipv4_address = config['PUBLIC_EXTERNAL_NETWORK_ADDR']
-            if 'ISOLATED_NETWORK_ADDR' in config:
-                isolated_address = config['ISOLATED_NETWORK_ADDR']
+            if 'PUBLIC_EXTERNAL_ADDRESS' in config:
+                external_ipv4_address = config['PUBLIC_EXTERNAL_ADDRESS']
+            if 'ISOLATED_ADDRESS' in config:
+                isolated_address = config['ISOLATED_ADDRESS']
             if 'ISOLATED_NETWORK' in config:
                 isolated_network = config['ISOLATED_NETWORK']
         except BaseException:
