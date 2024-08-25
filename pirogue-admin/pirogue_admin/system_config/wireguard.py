@@ -67,7 +67,7 @@ class WgConfig:  # pylint: disable=too-many-instance-attributes
     default values (interface name, listening port), but some other things are
     kept in the config file: peers and private/public key pair.
     """
-    external_address: str
+    public_external_address: str
     isolated_address: str
     isolated_network: str
     isolated_interface: str
@@ -106,7 +106,7 @@ class WgManager:
     PREFIXLEN = 24
 
     def __init__(self,  # pylint: disable=too-many-arguments
-                 external_address: str,
+                 public_external_address: str,
                  isolated_address: str,
                  isolated_network: str,
                  isolated_interface: str = DEFAULT_WG_IFACE,
@@ -123,7 +123,7 @@ class WgManager:
                                f'(expected={WgManager.PREFIXLEN})')
 
         self.config = WgConfig(
-            external_address,
+            public_external_address,
             isolated_address,
             isolated_network,
             isolated_interface,
@@ -342,7 +342,7 @@ class WgManager:
         lines.append('')
 
         lines.append('[Peer]')
-        lines.append(f'EndPoint = {self.config.external_address}:{self.config.port}')
+        lines.append(f'EndPoint = {self.config.public_external_address}:{self.config.port}')
         lines.append(f'PublicKey = {self.config.public_key}')
         # We want to route all traffic through the VPN:
         lines.append('AllowedIPs = 0.0.0.0/0')
@@ -372,7 +372,7 @@ class WgManager:
             old_config = WgConfig(**yaml.safe_load(config_path.read_text()))
 
             # Those are configurable via __init__() and might change over time:
-            for attr in ['external_address', 'isolated_address', 'isolated_network',
+            for attr in ['public_external_address', 'isolated_address', 'isolated_network',
                          'isolated_interface', 'port']:
                 if getattr(self.config, attr) != getattr(old_config, attr):
                     logging.warning('%s attribute changed: %s → %s',
