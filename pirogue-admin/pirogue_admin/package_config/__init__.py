@@ -612,6 +612,11 @@ class PackageConfigLoader:
         # Merge applied configuration to current configuration
         self.current_config = copy.deepcopy(variables)
 
+    def save_configuration(self):
+        """
+        Iterate over all files from all PackageConfig instances to apply the
+        configuration.
+        """
         # Saves the current configuration
         destination_config_path = Path(self.ctx.write_var_dir, 'config.yaml')
         print(f'Writing configuration file to: {destination_config_path}')

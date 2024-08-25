@@ -165,6 +165,7 @@ def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
 
     loader = PackageConfigLoader(c_ctx)
     loader.apply_configuration(yml_style_config)
+    loader.save_configuration()
 
     logging.info('Applied!')
 
