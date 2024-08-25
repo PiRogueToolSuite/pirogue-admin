@@ -175,7 +175,7 @@ def redeploy_configuration(c_ctx: ConfigurationContext):
     Redeploy the stored configuration.
 
     This is similar to apply_configuration() except we want to use the
-    configuration that's been stored already.
+    configuration that's been stored already, and we don't save it again.
     """
     # Maybe ConfigurationContext should know about config.yaml instead of
     # duplicating the following in PackageConfigLoader.__init__() and below:
