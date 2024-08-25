@@ -279,7 +279,7 @@ def main():
         autodetect_settings(c_ctx)
     if 'apply' in args:
         apply_configuration(c_ctx, args.apply)
-    if 'redeploy' in args:
+    if args.redeploy:
         redeploy_configuration(c_ctx)
     if 'configuration_tree' in args:
         generate_definition_tree(c_ctx, args.configuration_tree)
