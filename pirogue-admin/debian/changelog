@@ -1,8 +1,8 @@
-pirogue-admin (1.2.4) UNRELEASED; urgency=medium
+pirogue-admin (1.2.4) bookworm; urgency=medium
 
   * Avoid saving the configuration when redeploying.
 
- -- Cyril Brulebois <cyril@debamax.com>  Sun, 25 Aug 2024 03:04:57 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Sun, 25 Aug 2024 03:06:30 +0200
 
 pirogue-admin (1.2.3) bookworm; urgency=medium
 
