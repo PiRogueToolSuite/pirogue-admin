@@ -14,7 +14,7 @@ import zipfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from subprocess import check_call, check_output, run, DEVNULL
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -105,6 +105,9 @@ class WgManager:
     """
     # IPv4/IPv6:
     PREFIXLEN = 24
+
+    # Format string for generate_*() methods:
+    PEER_CONFIG_FORMAT = 'PiRogue-peer-%(idx)d.%(extension)s'
 
     def __init__(self,  # pylint: disable=too-many-arguments
                  public_external_address: str,
@@ -204,23 +207,26 @@ class WgManager:
         """
         return self.config.peers
 
-    def generate_conf(self, idx: int, dest: Path):
+    def generate_conf(self, idx: int, dest: Optional[Path]):
         """
         API call: generate the peer config file.
         """
+        dest = self.select_destination(idx, dest, 'conf')
         with dest.with_suffix('.new') as new_dest:
             new_dest.touch(0o600)
             new_dest.write_text(self.get_peer_config(idx))
             new_dest.rename(dest)
         logging.info('generated conf: %s', dest)
+        return dest
 
-    def generate_zip(self, idx: int, dest: Path):
+    def generate_zip(self, idx: int, dest: Optional[Path]):
         """
         API call: generate the peer config file, wrapped in a zip.
 
         Use the name of the destination file, with '.zip' replaced by '.conf',
         for the included config file.
         """
+        dest = self.select_destination(idx, dest, 'zip')
         with dest.with_suffix('.new') as new_dest:
             new_dest.touch(0o600)
             with zipfile.ZipFile(new_dest, mode="w") as archive:
@@ -228,8 +234,9 @@ class WgManager:
                                  self.get_peer_config(idx))
             new_dest.rename(dest)
         logging.info('generated zip: %s', dest)
+        return dest
 
-    def generate_qrcode(self, idx: int, dest: Path):
+    def generate_qrcode(self, idx: int, dest: Optional[Path]):
         """
         API call: generate the peer config file, as a QR code.
 
@@ -246,6 +253,7 @@ class WgManager:
         Let's focus on PNG (which is the default, and slightly smaller) for the
         time being.
         """
+        dest = self.select_destination(idx, dest, 'png')
         with dest.with_suffix('.new') as new_dest:
             new_dest.touch(0o600)
             qrcode = check_output(
@@ -255,6 +263,7 @@ class WgManager:
             new_dest.write_bytes(qrcode)
             new_dest.rename(dest)
         logging.info('generated qrcode: %s', dest)
+        return dest
 
     def generate_key_pair(self) -> Tuple[str, str]:
         """
@@ -435,6 +444,33 @@ class WgManager:
             wg_conf = Path(WG_ETC_DIR) / f'{interface}.conf'
             wg_conf.unlink(missing_ok=True)
             check_call(['systemctl', 'disable', '--now', unit])
+
+    def select_destination(self, idx: int, dest: Optional[Path], extension: str):
+        """
+        Build the filename to store the peer configuration.
+
+        The generate_*() caller may pass dest=None and let us pick a name. In
+        that case the comment is used if present, otherwise the default format
+        string is used.
+
+        In all cases, verify there's a peer matching the specified index.
+        """
+        # Let any exception bubble up (e.g. no such peer):
+        peer = self.get(idx)
+
+        # If the caller knows told us what to do, obey:
+        if dest is not None:
+            return dest
+
+        # Otherwise use the comment, if available:
+        if peer.comment != '':
+            return Path(f'{peer.comment}.{extension}')
+
+        # Final fallback:
+        return Path(WgManager.PEER_CONFIG_FORMAT % {
+            'idx': idx,
+            'extension': extension,
+        })
 
     @classmethod
     def validate_comment_format(cls, comment):

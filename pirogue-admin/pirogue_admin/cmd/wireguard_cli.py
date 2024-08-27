@@ -83,17 +83,14 @@ def main():
     if args.list:
         print(manager.list())
 
-    # In all cases below, generate a WireGuard peer configuration file:
-    def generate_args(arg, extension):
-        # Maybe include the pattern in help strings:
-        config_pattern = 'PiRogue-peer-%d.%s'
-        return arg, Path(config_pattern % (arg, extension))
+    # In all cases below, generate a WireGuard peer configuration file, letting
+    # the manager pick a filename for us by passing an explicit None:
     if args.generate_conf:
-        manager.generate_conf(*generate_args(args.generate_conf, 'conf'))
+        print(manager.generate_conf(args.generate_conf, None))
     if args.generate_zip:
-        manager.generate_zip(*generate_args(args.generate_zip, 'zip'))
+        print(manager.generate_zip(args.generate_zip, None))
     if args.generate_qrcode:
-        manager.generate_qrcode(*generate_args(args.generate_qrcode, 'png'))
+        print(manager.generate_qrcode(args.generate_qrcode, None))
 
 
 if __name__ == '__main__':
