@@ -9,6 +9,7 @@ import base64
 import binascii
 import ipaddress
 import logging
+import re
 import zipfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -142,6 +143,9 @@ class WgManager:
         would have to figure out what's available, what's not, and they
         shouldn't have to care about our implementation.
         """
+        if not WgManager.validate_comment_format(comment):
+            raise ValueError(f'invalid peer comment (format check failed): {comment}')
+
         # Compute an index, and make sure to have a comment:
         idx = self.get_free_index()
         if comment == '':
@@ -433,3 +437,20 @@ class WgManager:
             wg_conf = Path(WG_ETC_DIR) / f'{interface}.conf'
             wg_conf.unlink(missing_ok=True)
             check_call(['systemctl', 'disable', '--now', unit])
+
+    @classmethod
+    def validate_comment_format(cls, comment):
+        """
+        Initial implementation: any combinations (even empty) of letters,
+        digits, dashes, underscores, and dots are OK.
+
+        https://github.com/PiRogueToolSuite/pirogue-admin/issues/14
+
+        """
+        if comment == '':
+            return True
+
+        if re.match(r'^[0-9A-Za-z._-]*$', comment):
+            return True
+
+        return False
