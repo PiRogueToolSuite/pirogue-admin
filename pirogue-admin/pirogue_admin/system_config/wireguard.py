@@ -148,8 +148,6 @@ class WgManager:
 
         # Compute an index, and make sure to have a comment:
         idx = self.get_free_index()
-        if comment == '':
-            comment = f'client-{idx}'
 
         # If we get a public_key, we store an empty private_key; otherwise we
         # have to generate a private/public key pair on the fly.
