@@ -147,7 +147,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
     }))
 
 
-def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
+def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO, redeploy=False):
     """
     Deploy the selected configuration.
 
@@ -155,41 +155,39 @@ def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO):
 
     Over time components might want or need to declare some priority, so that
     they can be processed in the right order.
-    """
-    if in_fd is None:
-        in_fd = sys.stdin
 
-    yml_style_config = yaml.safe_load(in_fd)
-
-    logging.info('Applying: %s', yml_style_config)
-
-    loader = PackageConfigLoader(c_ctx)
-    loader.apply_configuration(yml_style_config)
-    loader.save_configuration()
-
-    logging.info('Applied!')
-
-
-def redeploy_configuration(c_ctx: ConfigurationContext):
-    """
-    Redeploy the stored configuration.
-
-    This is similar to apply_configuration() except we want to use the
-    configuration that's been stored already, and we don't save it again.
+    If redeploy is set, load the current configuration, possibly updating it for
+    newly-needed variables. We expect the configuration file format to be rather
+    stable over time, but some additions might still happen occasionally.
     """
     # Maybe ConfigurationContext should know about config.yaml instead of
     # duplicating the following in PackageConfigLoader.__init__() and below:
     current_config_path = Path(c_ctx.var_dir, 'config.yaml')
-    if not current_config_path.exists():
-        # Alternatively, we could go for a noisy no-op, but we should never get
-        # a request to redeploy if there's no configuration in the first place!
-        logging.error('Cannot redeploy, no configuration file stored!')
-        sys.exit(1)
+    if redeploy:
+        if not current_config_path.exists():
+            # Alternatively, we could go for a noisy no-op, but we should never get
+            # a request to redeploy if there's no configuration in the first place!
+            logging.error('Cannot redeploy, no configuration file stored!')
+            sys.exit(1)
+        in_fd = current_config_path.open('r')  # pylint: disable=consider-using-with
+    else:
+        if in_fd is None:
+            in_fd = sys.stdin
 
-    logging.info('Redeploying: %s', current_config_path)
+    yml_style_config = yaml.safe_load(in_fd)
+
+    if redeploy:
+        logging.info('Redeploying: %s', current_config_path)
+    else:
+        logging.info('Applying: %s', yml_style_config)
+
     loader = PackageConfigLoader(c_ctx)
-    loader.apply_configuration(yaml.safe_load(current_config_path.read_text()))
-    logging.info('Redeployed!')
+    loader.apply_configuration(yml_style_config, redeploy)
+
+    if redeploy:
+        logging.info('Redeployed!')
+    else:
+        logging.info('Applied!')
 
 
 def generate_definition_tree(c_ctx: ConfigurationContext, out_fd: TextIO):
@@ -280,7 +278,7 @@ def main():
     if 'apply' in args:
         apply_configuration(c_ctx, args.apply)
     if args.redeploy:
-        redeploy_configuration(c_ctx)
+        apply_configuration(c_ctx, None, redeploy=True)
     if 'configuration_tree' in args:
         generate_definition_tree(c_ctx, args.configuration_tree)
     if 'current_config' in args:

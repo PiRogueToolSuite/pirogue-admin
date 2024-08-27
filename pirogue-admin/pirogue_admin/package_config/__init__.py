@@ -573,10 +573,15 @@ class PackageConfigLoader:
             variables.extend(config.get_needed_variables())
         return sorted(set(variables))
 
-    def apply_configuration(self, dynamic_variables: dict[str, str]):
+    def apply_configuration(self, dynamic_variables: dict[str, str], redeploy=False):
         """
         Iterate over all files from all PackageConfig instances to apply the
         configuration.
+
+        If redeploy is set, make sure to update the configuration if needed.
+
+        If redeploy in unset, or if newly-needed variables are detected, save
+        the configuration file in the end.
         """
         # Start from default variables, and overlay dynamic variables:
         variables = copy.deepcopy(self.variables)
@@ -588,6 +593,14 @@ class PackageConfigLoader:
         # Applies new variables set
         for key, value in dynamic_variables.items():
             variables[key] = value
+
+        # Update the configuration if needed:
+        new_variables = {}
+        if redeploy:
+            new_variables = self.update_configuration(variables)
+            for key, value in new_variables.items():
+                logging.info('Updating configuration with: %s = %s', key, value)
+                variables[key] = value
 
         # Make sure there are no missing variables:
         missing = [x for x in self.get_needed_variables() if x not in variables]
@@ -611,14 +624,24 @@ class PackageConfigLoader:
         # Merge applied configuration to current configuration
         self.current_config = copy.deepcopy(variables)
 
-    def save_configuration(self):
+        if redeploy is False or new_variables:
+            # Save the current configuration:
+            destination_config_path = Path(self.ctx.write_var_dir, 'config.yaml')
+            print(f'Writing configuration file to: {destination_config_path}')
+            destination_config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(destination_config_path, 'w', encoding="utf-8") as out_fd:
+                self.dump_current_configuration(out_fd, notice_preamble=True)
+
+    def update_configuration(self, variables: dict[str, str]) -> dict[str, str]:
         """
-        Iterate over all files from all PackageConfig instances to apply the
-        configuration.
+        Make sure an existing configuration contains all the required variables.
+
+        We expect the configuration file format to be rather stable over time,
+        but some additions might still happen from time to time.
+
+        When adding a variable, a default/safe value must always be provided by
+        adding some code to this method, to avoid a straight-up failure when
+        a package depending on a new variable requests the configuration to be
+        redeployed.
         """
-        # Saves the current configuration
-        destination_config_path = Path(self.ctx.write_var_dir, 'config.yaml')
-        print(f'Writing configuration file to: {destination_config_path}')
-        destination_config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(destination_config_path, 'w', encoding="utf-8") as out_fd:
-            self.dump_current_configuration(out_fd, notice_preamble=True)
+        return {}
