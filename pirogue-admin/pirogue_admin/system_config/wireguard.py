@@ -460,7 +460,11 @@ class WgManager:
 
         # If the caller knows told us what to do, obey:
         if dest is not None:
-            return dest
+            if isinstance(dest, str):
+                return Path(dest)
+            if isinstance(dest, Path):
+                return dest
+            raise ValueError('dest parameter is neither a str or a Path')
 
         # Otherwise use the comment, if available:
         if peer.comment != '':
