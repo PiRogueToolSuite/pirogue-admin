@@ -512,7 +512,7 @@ if __name__ == '__main__':
     print('Detect external interface:')
     pprint.pprint(detect_external_interface())
     print()
-    print('Detect network stack:')
+    print('Detect network stacks:')
     pprint.pprint(detect_network_stacks())
     print()
     print('Suggest operating mode:')
