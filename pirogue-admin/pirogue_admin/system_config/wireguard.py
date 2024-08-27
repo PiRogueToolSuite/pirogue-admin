@@ -207,11 +207,11 @@ class WgManager:
         """
         return self.config.peers
 
-    def generate_conf(self, idx: int, dest: Optional[Path]):
+    def generate_conf(self, idx: int, opt_dest: Optional[Path]):
         """
         API call: generate the peer config file.
         """
-        dest = self.select_destination(idx, dest, 'conf')
+        dest = self.select_destination(idx, opt_dest, 'conf')
         with dest.with_suffix('.new') as new_dest:
             new_dest.touch(0o600)
             new_dest.write_text(self.get_peer_config(idx))
@@ -219,14 +219,14 @@ class WgManager:
         logging.info('generated conf: %s', dest)
         return dest
 
-    def generate_zip(self, idx: int, dest: Optional[Path]):
+    def generate_zip(self, idx: int, opt_dest: Optional[Path]):
         """
         API call: generate the peer config file, wrapped in a zip.
 
         Use the name of the destination file, with '.zip' replaced by '.conf',
         for the included config file.
         """
-        dest = self.select_destination(idx, dest, 'zip')
+        dest = self.select_destination(idx, opt_dest, 'zip')
         with dest.with_suffix('.new') as new_dest:
             new_dest.touch(0o600)
             with zipfile.ZipFile(new_dest, mode="w") as archive:
@@ -236,7 +236,7 @@ class WgManager:
         logging.info('generated zip: %s', dest)
         return dest
 
-    def generate_qrcode(self, idx: int, dest: Optional[Path]):
+    def generate_qrcode(self, idx: int, opt_dest: Optional[Path]):
         """
         API call: generate the peer config file, as a QR code.
 
@@ -253,7 +253,7 @@ class WgManager:
         Let's focus on PNG (which is the default, and slightly smaller) for the
         time being.
         """
-        dest = self.select_destination(idx, dest, 'png')
+        dest = self.select_destination(idx, opt_dest, 'png')
         with dest.with_suffix('.new') as new_dest:
             new_dest.touch(0o600)
             qrcode = check_output(
