@@ -72,11 +72,9 @@ def main():
         # Support both "this-is-a-comment,public-key==" and "this-is-a-comment"
         # (as well as "," to generate both the comment and the key pair):
         if args.add.find(',') != -1:
-            # FIXME: Decide on a comment format, then validate it.
             comment, public_key = args.add.split(',')[0:2]
             print(manager.add(comment, public_key))
         else:
-            # FIXME: Decide on a comment format, then validate it.
             print(manager.add(args.add, ''))
     if args.delete:
         print(manager.delete(args.delete))
