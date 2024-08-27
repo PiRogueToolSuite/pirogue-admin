@@ -181,10 +181,10 @@ def redeploy_configuration(c_ctx: ConfigurationContext):
     # duplicating the following in PackageConfigLoader.__init__() and below:
     current_config_path = Path(c_ctx.var_dir, 'config.yaml')
     if not current_config_path.exists():
-        # FIXME: Decide before a noisy no-op and a straight-up failure. Remember
-        # the main use case is postinst scripts!
-        logging.warning('Ignoring redeploy request, no configuration file stored!')
-        return
+        # Alternatively, we could go for a noisy no-op, but we should never get
+        # a request to redeploy if there's no configuration in the first place!
+        logging.error('Cannot redeploy, no configuration file stored!')
+        sys.exit(1)
 
     logging.info('Redeploying: %s', current_config_path)
     loader = PackageConfigLoader(c_ctx)
