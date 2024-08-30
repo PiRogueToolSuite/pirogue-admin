@@ -3,6 +3,8 @@ pirogue-admin (1.3.3) UNRELEASED; urgency=medium
   * Make --redeploy fail instead of just logging a warning: that must
     never happen! If it does, that probably means users trying to do weird
     things, or buggy postinst scripts.
+  * Add support for the format_nftables_list_of_networks formatter, for
+    pirogue-networking's EXTERNAL_NETWORKS variable.
 
  -- Cyril Brulebois <cyril@debamax.com>  Tue, 27 Aug 2024 21:17:55 +0200
 

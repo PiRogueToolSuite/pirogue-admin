@@ -148,3 +148,16 @@ def format_grafana_re_negative_match_address(value: str,
     do on the left, either here or in format_grafana_re_positive_match_network().
     """
     return f'!~ /{value}$/'
+
+
+@formatter
+def format_nftables_list_of_networks(value: str,
+                                     _variables: dict[str, str]):
+    """
+    Take a comma-separated string, listing (IPv4) networks, and format it for
+    inclusion in an nftables rules file, e.g. inside an `ip daddr {}` block.
+
+    Split on commas, deleting any spaces in the resulting items.
+    """
+    networks = [x.strip() for x in value.split(',')]
+    return ', '.join(networks)
