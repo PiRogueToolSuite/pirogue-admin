@@ -139,6 +139,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         'ISOLATED_ADDRESS': str(isolated_address),
         'ISOLATED_INTERFACE': isolated_interface,
         'EXTERNAL_INTERFACE': external_interface,
+        'EXTERNAL_NETWORKS': external_networks,
         'ENABLE_DHCP': enable_dhcp,
         # Things that might be accumulated depending on the operating mode:
         **extras,
