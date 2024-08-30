@@ -1,4 +1,4 @@
-pirogue-admin (1.3.4) UNRELEASED; urgency=medium
+pirogue-admin (1.3.4) bookworm; urgency=medium
 
   * Fix expectation mismatch:
      - The autodetection code returns EXTERNAL_NETWORKS as a list, rather
@@ -9,7 +9,7 @@ pirogue-admin (1.3.4) UNRELEASED; urgency=medium
     humans) but all variables-related code deals with dict[str, str], so
     adjust the autodetection code.
 
- -- Cyril Brulebois <cyril@debamax.com>  Fri, 30 Aug 2024 12:28:00 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 30 Aug 2024 12:36:47 +0200
 
 pirogue-admin (1.3.3) bookworm; urgency=medium
 
