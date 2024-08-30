@@ -18,7 +18,7 @@ from typing import TextIO
 import yaml
 
 from pirogue_admin.tools import get_size_and_digest
-from pirogue_admin.system_config import SystemConfig
+from pirogue_admin.system_config import SystemConfig, detect_ipv4_networks
 from .conditions import SUPPORTED_CONDITIONS
 from .formatters import SUPPORTED_FORMATTERS
 
@@ -644,4 +644,13 @@ class PackageConfigLoader:
         a package depending on a new variable requests the configuration to be
         redeployed.
         """
-        return {}
+        new_variables = {}
+
+        if 'EXTERNAL_NETWORKS' not in variables:
+            # Don't assume any other variables are set:
+            if 'EXTERNAL_INTERFACE' not in variables:
+                raise RuntimeError('missing EXTERNAL_INTERFACE, needed to derive EXTERNAL_NETWORKS')
+            networks = detect_ipv4_networks(variables['EXTERNAL_INTERFACE'])
+            new_variables['EXTERNAL_NETWORKS'] = ','.join(networks)
+
+        return new_variables

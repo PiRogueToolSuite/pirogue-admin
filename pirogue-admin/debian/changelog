@@ -5,6 +5,9 @@ pirogue-admin (1.3.3) UNRELEASED; urgency=medium
     things, or buggy postinst scripts.
   * Add support for the format_nftables_list_of_networks formatter, for
     pirogue-networking's EXTERNAL_NETWORKS variable.
+  * Add support for updating the configuration when redeploying, when
+    EXTERNAL_NETWORKS is missing: derive it from EXTERNAL_INTERFACE and
+    the currently-configured networks for this interface.
 
  -- Cyril Brulebois <cyril@debamax.com>  Tue, 27 Aug 2024 21:17:55 +0200
 
