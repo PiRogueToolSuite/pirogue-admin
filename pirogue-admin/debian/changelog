@@ -1,3 +1,12 @@
+pirogue-admin (1.3.5) UNRELEASED; urgency=medium
+
+  * Improve ifupdown detection: call `ifquery --list` twice, once with
+    `--all` and once with `--allow hotplug`. The former works for /e/n/i
+    as set up in Debian/PTS Raspberry Pi images, the latter is required to
+    spot allow-hotplug interfaces set up by debian-installer.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Thu, 05 Sep 2024 11:20:12 +0200
+
 pirogue-admin (1.3.4) bookworm; urgency=medium
 
   * Fix expectation mismatch:

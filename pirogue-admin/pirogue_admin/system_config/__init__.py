@@ -163,14 +163,18 @@ def detect_network_stacks() -> list[NetworkStack]:
     # when other units are active. Let's check whether configuration exists for
     # some interfaces. On the other hand, ifupdown might not even be installed,
     # so ifquery can trigger FileNotFoundError exception (caught via OSError).
-    try:
-        ifquery = subprocess.check_output(['ifquery', '--list', '--all'])
-        # The loopback is returned systematically, even if /e/n/i is missing:
-        interfaces = [x for x in ifquery.decode().splitlines() if x != 'lo']
-        if interfaces:
-            stacks.append(NetworkStack.IFUPDOWN)
-    except (subprocess.CalledProcessError, OSError):
-        pass
+    #
+    # Try twice, because of auto interfaces (e.g. Pi images) vs. allow-hotplug
+    # interfaces (e.g. d-i installations):
+    for ifquery_args in (['--all'], ['--allow', 'hotplug']):
+        try:
+            ifquery = subprocess.check_output(['ifquery', '--list', *ifquery_args])
+            # The loopback is returned systematically, even if /e/n/i is missing:
+            interfaces = [x for x in ifquery.decode().splitlines() if x != 'lo']
+            if interfaces:
+                stacks.append(NetworkStack.IFUPDOWN)
+        except (subprocess.CalledProcessError, OSError):
+            pass
 
     # If we didn't find anything, record that fact:
     if not stacks:
