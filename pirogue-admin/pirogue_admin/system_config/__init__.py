@@ -146,18 +146,18 @@ def detect_network_stacks() -> list[NetworkStack]:
     Check running systemd units, keeping in mind several stacks could be
     co-installed.
     """
-    stacks = []
+    stacks = set()
 
     # Easy case: rely on activation case for some systemd units.
     if systemctl_is_active('systemd-networkd'):
         if systemctl_is_active('systemd-resolved'):
-            stacks.append(NetworkStack.NETWORKD_RESOLVED)
+            stacks.add(NetworkStack.NETWORKD_RESOLVED)
         else:
-            stacks.append(NetworkStack.NETWORKD)
+            stacks.add(NetworkStack.NETWORKD)
 
     # Ditto:
     if systemctl_is_active('NetworkManager'):
-        stacks.append(NetworkStack.NM)
+        stacks.add(NetworkStack.NM)
 
     # Trickier, ifupdown.service is Type=oneshot and is unlikely to be disabled
     # when other units are active. Let's check whether configuration exists for
@@ -172,18 +172,18 @@ def detect_network_stacks() -> list[NetworkStack]:
             # The loopback is returned systematically, even if /e/n/i is missing:
             interfaces = [x for x in ifquery.decode().splitlines() if x != 'lo']
             if interfaces:
-                stacks.append(NetworkStack.IFUPDOWN)
+                stacks.add(NetworkStack.IFUPDOWN)
         except (subprocess.CalledProcessError, OSError):
             pass
 
     # If we didn't find anything, record that fact:
     if not stacks:
-        stacks.append(NetworkStack.UNKNOWN)
+        stacks.add(NetworkStack.UNKNOWN)
 
     # FIXME: Decide what to do whether there are too many things, either error
     # out frankly, or just return all detected stacks. For now, let's go the
     # easy way, return everything, and leave the decision to callers.
-    return stacks
+    return list(stacks)
 
 
 def systemctl_is_active(unit: str) -> bool:
