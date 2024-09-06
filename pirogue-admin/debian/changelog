@@ -1,4 +1,4 @@
-pirogue-admin (1.4.1) UNRELEASED; urgency=medium
+pirogue-admin (1.4.1) bookworm; urgency=medium
 
   * Extend support for NetworkManager, when the isolated interface is an
     Ethernet one (APPLIANCE mode):
@@ -9,7 +9,7 @@ pirogue-admin (1.4.1) UNRELEASED; urgency=medium
     configured in APPLIANCE mode, with a USB/Ethernet adapter for the
     isolated network).
 
- -- Cyril Brulebois <cyril@debamax.com>  Fri, 06 Sep 2024 10:39:16 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 06 Sep 2024 17:02:34 +0200
 
 pirogue-admin (1.4.0) bookworm; urgency=medium
 
