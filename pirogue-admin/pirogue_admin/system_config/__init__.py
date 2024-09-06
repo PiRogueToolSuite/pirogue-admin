@@ -450,6 +450,8 @@ class SystemConfig:
         NOTE: If we're switching between interfaces, there's no way of knowing
         at this point. So we might need to have some explicit deconfiguration
         step if that needs to be supported.
+
+        See: https://github.com/PiRogueToolSuite/pirogue-admin/issues/7
         """
         if self.stacks == [NetworkStack.IFUPDOWN]:
             # For now, assume the snippets directory exists and is referenced in the
@@ -474,12 +476,6 @@ class SystemConfig:
                            check=False)
 
         elif self.stacks == [NetworkStack.NETWORKD_RESOLVED]:
-            # FIXME: We could perform some introspection to see if and how the
-            # interface is configured, but let's go for a direct configuration
-            # for the time being.
-            #
-            # FIXME: We should perform some deconfiguration if we already had
-            # a different interface in that file.
             Path(SYSTEMD_NETWORKD_CONF).write_text(
                 f'# Written by pirogue-admin:\n'
                 f'[Match]\n'
