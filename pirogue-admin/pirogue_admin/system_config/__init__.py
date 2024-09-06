@@ -482,6 +482,8 @@ class SystemConfig:
             # hard):
             subprocess.run(['ip', 'address', 'add', f'{address}/{prefixlen}', 'dev', interface],
                            check=False)
+            subprocess.run(['ip', 'link', 'set', interface, 'up'],
+                           check=False)
 
         elif self.stacks == [NetworkStack.NETWORKD_RESOLVED]:
             Path(SYSTEMD_NETWORKD_CONF).write_text(
