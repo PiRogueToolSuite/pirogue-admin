@@ -30,7 +30,7 @@ DEFAULT_TARGET_IP = '1.1.1.1'
 
 # Where to store systemd-networkd settings. That must be ordered before the
 # default 10-netplan-all-{en,eth}.network (as shipped in Debian 12):
-SYSTEMD_NETWORKD_CONF = '/etc/systemd/network/01-pirogue.network'
+SYSTEMD_NETWORKD_CONF = '/etc/systemd/network/01-pirogue-isolated-network.network'
 
 
 class DevType(Enum):
