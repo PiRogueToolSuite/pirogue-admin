@@ -1,3 +1,12 @@
+pirogue-admin (1.4.1) UNRELEASED; urgency=medium
+
+  * Extend support for NetworkManager, when the isolated interface is an
+    Ethernet one (APPLIANCE mode):
+     - Create/update pirogue-isolated-network.nmconnection via nmcli, with
+       fewer parameters than in the Wi-Fi case (AP mode).
+
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 06 Sep 2024 10:39:16 +0200
+
 pirogue-admin (1.4.0) bookworm; urgency=medium
 
   * Improve ifupdown detection: call `ifquery --list` twice, once with

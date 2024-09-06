@@ -540,6 +540,26 @@ class SystemConfig:
                 subprocess.check_call(nmcli_add_cmd)
                 subprocess.check_call(['nmcli', 'connection', 'up', NM_CONNECTION_NAME])
 
+            elif interfaces[interface] == DevType.ETHERNET:
+                # Since we don't want to hardcode the exact configuration file
+                # format, we go for an nmcli call with as many parameters as
+                # required to make the connection from a phone work.
+
+                nmcli_add_cmd = [
+                    'nmcli',
+                    'connection', 'add',
+                    # Section: [connection]
+                    'con-name', NM_CONNECTION_NAME,
+                    'ifname', interface,
+                    'type', 'ethernet',
+                    # Section: [ipv4]
+                    'ipv4.method', 'manual',
+                    'ipv4.addresses', f'{address}/{prefixlen}',
+                    # Section: [ipv6]
+                    'ipv6.method', 'disabled',
+                ]
+                subprocess.check_call(nmcli_add_cmd)
+                subprocess.check_call(['nmcli', 'connection', 'up', NM_CONNECTION_NAME])
             else:
                 raise RuntimeError(f'interface type ({interfaces[interface]}) is unsupported')
 
