@@ -32,6 +32,9 @@ DEFAULT_TARGET_IP = '1.1.1.1'
 # default 10-netplan-all-{en,eth}.network (as shipped in Debian 12):
 SYSTEMD_NETWORKD_CONF = '/etc/systemd/network/01-pirogue-isolated-network.network'
 
+# Connection name for NetworkManager:
+NM_CONNECTION_NAME = 'pirogue-isolated-network'
+
 
 class DevType(Enum):
     """
@@ -401,6 +404,10 @@ class SystemConfig:
             'ISOLATED_NETWORK',
             'ISOLATED_ADDRESS',
             'ISOLATED_INTERFACE',
+            # FIXME: We need a few more variables in AP mode, if the network
+            # stack is NM (SSID and PSK at least).
+            #  'WIFI_SSID',
+            #  'WIFI_PASSPHRASE',
         ]
         self.stacks = detect_network_stacks()
 
@@ -423,7 +430,8 @@ class SystemConfig:
             self.configure_isolated_interface(
                 variables['ISOLATED_INTERFACE'],
                 variables['ISOLATED_ADDRESS'],
-                ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen
+                ipaddress.ip_network(variables['ISOLATED_NETWORK']).prefixlen,
+                variables,
             )
         elif operating_mode in [OperatingMode.VPN]:
             # Tricky case: could we express that's a needed variable without
@@ -443,7 +451,7 @@ class SystemConfig:
         else:
             raise NotImplementedError(f'support for {operating_mode} is missing at this point')
 
-    def configure_isolated_interface(self, interface, address, prefixlen):
+    def configure_isolated_interface(self, interface, address, prefixlen, variables):
         """
         Configure the isolated interface.
 
@@ -488,6 +496,52 @@ class SystemConfig:
             # That seems to be sufficient, at least to configure an (otherwise)
             # unconfigured interface:
             subprocess.check_call(['networkctl', 'reload'])
+
+        elif self.stacks == [NetworkStack.NM]:
+            # Note: NM supports various reload operations. Reloading the daemon
+            # entirely (via SIGHUP or D-Bus) after modifying connections doesn't
+            # do the trick, while `nmcl c reload` does.
+
+            # First make sure there are no duplicates:
+            subprocess.run(['nmcli', 'connection', 'down', NM_CONNECTION_NAME],
+                           check=False)
+            subprocess.run(['nmcli', 'connection', 'delete', NM_CONNECTION_NAME],
+                           check=False)
+
+            interfaces = detect_network_interfaces()
+            if interfaces[interface] == DevType.WIRELESS:
+                # Since we don't want to hardcode the exact configuration file
+                # format, we go for an nmcli call with as many parameters as
+                # required to make the connection from a phone work.
+
+                nmcli_add_cmd = [
+                    'nmcli',
+                    'connection', 'add',
+                    # Section: [connection]
+                    'con-name', NM_CONNECTION_NAME,
+                    'ifname', interface,
+                    'type', 'wifi',
+                    'autoconnect', 'true',
+                    # Section: [wifi]
+                    'mode', 'ap',
+                    'ssid', variables['WIFI_SSID'],
+                    # Section: [wifi-security]
+                    'wifi-sec.key-mgmt', 'wpa-psk',
+                    'wifi-sec.psk', variables['WIFI_PASSPHRASE'],
+                    'wifi-sec.group', 'ccmp',
+                    'wifi-sec.pairwise', 'ccmp',
+                    'wifi-sec.proto', 'rsn',
+                    # Section: [ipv4]
+                    'ipv4.method', 'manual',
+                    'ipv4.addresses', f'{address}/{prefixlen}',
+                    # Section: [ipv6]
+                    'ipv6.method', 'disabled',
+                ]
+                subprocess.check_call(nmcli_add_cmd)
+                subprocess.check_call(['nmcli', 'connection', 'up', NM_CONNECTION_NAME])
+
+            else:
+                raise RuntimeError(f'interface type ({interfaces[interface]}) is unsupported')
 
         else:
             raise NotImplementedError(f'support for stacks={self.stacks} is missing at this point')
