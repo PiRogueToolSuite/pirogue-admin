@@ -11,6 +11,7 @@ import subprocess
 from functools import wraps
 
 from pirogue_admin.system_config import OperatingMode, SystemConfig
+from pirogue_admin.system_config import NetworkStack, detect_network_stacks
 
 
 def get_iptables_alternatives_value():
@@ -66,6 +67,11 @@ def condition_hostapd_needed(variables: dict[str, str]):
     """
     mode = OperatingMode(variables[f'{SystemConfig.PREFIX}OPERATING_MODE'])
     if mode == OperatingMode.AP:
+        # If the network stack is NM, the interface is fully configured through
+        # it, so we must make sure hostapd is disabled:
+        stacks = detect_network_stacks()
+        if NetworkStack.NM in stacks:
+            return False
         return True
     return False
 
