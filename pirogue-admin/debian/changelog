@@ -13,7 +13,7 @@ pirogue-admin (1.4.0) bookworm; urgency=medium
      - Create/update pirogue-isolated-network.nmconnection via nmcli.
      - Disable hostapd in that case, as NM fully manages the interface.
 
- -- Cyril Brulebois <kibi@debian.org>  Fri, 06 Sep 2024 09:16:39 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 06 Sep 2024 09:16:39 +0200
 
 pirogue-admin (1.3.4) bookworm; urgency=medium
 
