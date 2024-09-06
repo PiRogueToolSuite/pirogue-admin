@@ -9,7 +9,7 @@ pirogue-admin (1.4.0) bookworm; urgency=medium
     clear this is a PiRogue configuration file, for the isolated network
     specifically.
   * Add initial support for NetworkManager, when the isolated interface is
-    a Wi-Fi one:
+    a Wi-Fi one (AP mode):
      - Create/update pirogue-isolated-network.nmconnection via nmcli.
      - Disable hostapd in that case, as NM fully manages the interface.
 
