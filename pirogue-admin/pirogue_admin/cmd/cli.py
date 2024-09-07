@@ -7,6 +7,7 @@ Known limitations:
 """
 
 import argparse
+import copy
 import logging
 import os
 import sys
@@ -157,6 +158,22 @@ def autodetect_and_provision(c_ctx: ConfigurationContext):
     """
     settings = autodetect_settings(c_ctx)
     print(yaml.safe_dump(settings))
+
+    user_config_path = Path(c_ctx.var_dir, 'user.config.yaml')
+    if user_config_path.exists():
+        merged_settings = copy.deepcopy(settings)
+        try:
+            logging.info('merging user configuration: %s', user_config_path)
+            user_settings = yaml.safe_load(user_config_path.read_text())
+            for key, value in user_settings.items():
+                merged_settings[key] = value
+            print(yaml.safe_dump(merged_settings))
+        except BaseException as exception:
+            logging.error('unable to (fully) take user configuration into account: %s', exception)
+            logging.error('returning only the autodetected settings accordingly!')
+            print(yaml.safe_dump(settings))
+    else:
+        print(yaml.safe_dump(settings))
 
 
 def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO, redeploy=False):
