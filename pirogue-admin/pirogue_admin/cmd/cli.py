@@ -168,8 +168,8 @@ def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO, redeploy=Fal
         if not current_config_path.exists():
             # Alternatively, we could go for a noisy no-op, but we should never get
             # a request to redeploy if there's no configuration in the first place!
-            logging.error('Cannot redeploy, no configuration file stored!')
-            sys.exit(1)
+            logging.warning('Cannot redeploy, no configuration file stored!')
+            sys.exit(0)
         in_fd = current_config_path.open('r')  # pylint: disable=consider-using-with
     else:
         if in_fd is None:
