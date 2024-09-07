@@ -1,4 +1,4 @@
-pirogue-admin (1.4.4) UNRELEASED; urgency=medium
+pirogue-admin (1.4.4) bookworm; urgency=medium
 
   * Add support for provisioning variables: when autodetection is
     performed (e.g. `pirogue-admin --autodetect` from pirogue-base's
@@ -8,7 +8,7 @@ pirogue-admin (1.4.4) UNRELEASED; urgency=medium
     there's no such file in the first place, only the autodetected
     settings are returned.
 
- -- Cyril Brulebois <cyril@debamax.com>  Sat, 07 Sep 2024 23:56:29 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Sun, 08 Sep 2024 00:02:26 +0200
 
 pirogue-admin (1.4.3) bookworm; urgency=medium
 
