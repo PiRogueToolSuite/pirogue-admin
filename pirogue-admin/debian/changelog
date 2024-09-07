@@ -1,4 +1,4 @@
-pirogue-admin (1.4.3) UNRELEASED; urgency=medium
+pirogue-admin (1.4.3) bookworm; urgency=medium
 
   * Delete support for NFTABLES_MODE and IPTABLES_MODE conditions:
      - We want to focus on nftables support.
@@ -7,7 +7,7 @@ pirogue-admin (1.4.3) UNRELEASED; urgency=medium
        alternatives. And we're no longer depending on iptables via
        pirogue-networking anyway.
 
- -- Cyril Brulebois <cyril@debamax.com>  Sat, 07 Sep 2024 19:56:01 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Sat, 07 Sep 2024 19:59:08 +0200
 
 pirogue-admin (1.4.2) bookworm; urgency=medium
 
