@@ -1,3 +1,14 @@
+pirogue-admin (1.4.3) UNRELEASED; urgency=medium
+
+  * Delete support for NFTABLES_MODE and IPTABLES_MODE conditions:
+     - We want to focus on nftables support.
+     - That relies on having the iptables package installed as it's the
+       one responsible for setting up nft (auto/default) vs. legacy
+       alternatives. And we're no longer depending on iptables via
+       pirogue-networking anyway.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Sat, 07 Sep 2024 19:56:01 +0200
+
 pirogue-admin (1.4.2) bookworm; urgency=medium
 
   * Adjust --redeploy vs. missing configuration file to help support

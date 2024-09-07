@@ -14,17 +14,6 @@ from pirogue_admin.system_config import OperatingMode, SystemConfig
 from pirogue_admin.system_config import NetworkStack, detect_network_stacks
 
 
-def get_iptables_alternatives_value():
-    """
-    DRY for the iptables/nftables functions.
-    """
-    output = subprocess.check_output(['update-alternatives', '--query', 'iptables'])
-    for line in output.decode().splitlines():
-        if line.startswith('Value: '):
-            return line[len('Value: '):]
-    raise ValueError('could not determine the current value of the iptables alternatives')
-
-
 # This dict is automatically filled thanks to the decorator (factory) used for
 # the following methods, each condition points to a function and to a list of
 # variables that are required for proper operation.
@@ -74,23 +63,3 @@ def condition_hostapd_needed(variables: dict[str, str]):
             return False
         return True
     return False
-
-
-@conditioner([])
-def condition_iptables_mode(_variables: dict[str, str]):
-    """
-    Ask the alternatives system about the iptables/nftables situation.
-
-    FIXME: Is that actually reliable?
-    """
-    return get_iptables_alternatives_value().endswith('-legacy')
-
-
-@conditioner([])
-def condition_nftables_mode(_variables: dict[str, str]):
-    """
-    Ask the alternatives system about the iptables/nftables situation.
-
-    FIXME: Is that actually reliable?
-    """
-    return get_iptables_alternatives_value().endswith('-nft')
