@@ -1,3 +1,15 @@
+pirogue-admin (1.4.4) UNRELEASED; urgency=medium
+
+  * Add support for provisioning variables: when autodetection is
+    performed (e.g. `pirogue-admin --autodetect` from pirogue-base's
+    postinst script), /var/lib/pirogue/admin/user.config.yaml is used
+    automatically if present, adding or replacing variables among the
+    autodetected settings. If anything goes wrong while doing so, or if
+    there's no such file in the first place, only the autodetected
+    settings are returned.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Sat, 07 Sep 2024 23:56:29 +0200
+
 pirogue-admin (1.4.3) bookworm; urgency=medium
 
   * Delete support for NFTABLES_MODE and IPTABLES_MODE conditions:
