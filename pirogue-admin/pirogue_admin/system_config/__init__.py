@@ -205,7 +205,9 @@ class OperatingMode(Enum):
       - access point is the historical behaviour on Raspberry Pi, with wlan0 for
         the isolated network and eth0 for the external network (wireless→wired).
       - appliance covers a wide range of use cases (including baremetal servers
-        and dedicated VMs), with two Ethernet interfaces (wired→wired).
+        and dedicated VMs), *usually* with two Ethernet interfaces (wired→wired),
+        but Ethernet for the isolated network and Wi-Fi for the external network
+        also works (wired→wireless).
       - vpn is the fallback if a single interface is spotted, and setting up
         wireguard is going to make a new interface pop up to manage the isolated
         network (vpn→wired).
