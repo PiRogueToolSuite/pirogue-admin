@@ -55,7 +55,7 @@ def check_consistency(c_ctx: ConfigurationContext):
                    allow_unicode=True)
 
 
-def autodetect_settings(c_ctx: ConfigurationContext):
+def autodetect_settings(_c_ctx: ConfigurationContext):
     """
     Use available interfaces to propose a best-guess setup.
 
@@ -134,7 +134,7 @@ def autodetect_settings(c_ctx: ConfigurationContext):
     # to avoid running a rogue DHCP server).
     enable_dhcp = True
 
-    print(yaml.safe_dump({
+    return {
         'ISOLATED_NETWORK': str(isolated_network),
         'ISOLATED_ADDRESS': str(isolated_address),
         'ISOLATED_INTERFACE': isolated_interface,
@@ -145,7 +145,18 @@ def autodetect_settings(c_ctx: ConfigurationContext):
         **extras,
         # This is for SystemConfig (pirogue-admin):
         'SYSTEM_OPERATING_MODE': mode.value,
-    }))
+    }
+
+
+def autodetect_and_provision(c_ctx: ConfigurationContext):
+    """
+    Run autodetection and merge user configuration (if present).
+
+    If anything goes wrong while merging the user configuration, return only the
+    autodetected settings.
+    """
+    settings = autodetect_settings(c_ctx)
+    print(yaml.safe_dump(settings))
 
 
 def apply_configuration(c_ctx: ConfigurationContext, in_fd: TextIO, redeploy=False):
@@ -241,7 +252,8 @@ def main():
     parser.add_argument('--check', action='store_true',
                         help='check consistency of all metadata files')
     parser.add_argument('--autodetect', action='store_true',
-                        help='autodetect settings based on available interfaces')
+                        help='''autodetect settings based on available interfaces.
+                        The possible user configuration file is merged on top of those settings.''')
     parser.add_argument('--from-scratch', action='store_true',
                         help='do not load existing configuration')
     parser.add_argument('--apply',
@@ -275,7 +287,7 @@ def main():
     if args.check:
         check_consistency(c_ctx)
     if args.autodetect:
-        autodetect_settings(c_ctx)
+        autodetect_and_provision(c_ctx)
     if 'apply' in args:
         apply_configuration(c_ctx, args.apply)
     if args.redeploy:
