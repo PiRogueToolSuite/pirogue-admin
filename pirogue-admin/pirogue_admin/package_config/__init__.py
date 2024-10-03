@@ -340,7 +340,25 @@ class PackageConfig:
             if self.ctx.dry_run:
                 logging.info(f'dry-running {shlex.split(action)} ...')
             else:
-                subprocess.check_call(shlex.split(action))
+                # Expand variables by their values if present
+                shell_action_fragments = shlex.split(action)
+                expanded_shell_action_fragments = []
+                for shell_action_element in shell_action_fragments:
+                    # Check if action part is a variable reference
+                    if shell_action_element.startswith('@') and shell_action_element.endswith('@'):
+                        variable_ref = shell_action_element.removeprefix('@').removesuffix('@')
+                        if variable_ref in variables:
+                            expanded_shell_action_fragments.append(variables[variable_ref])
+                        else:
+                            raise KeyError(
+                                f'{variable_ref} variable not found'
+                                f' using {shell_action_element} reference in action')
+                    else:
+                        expanded_shell_action_fragments.append(shell_action_element)
+                # Now, we can execute the expanded action
+                subprocess.check_call(expanded_shell_action_fragments)
+            # NOTE: We do not log expanded action. May be subject to discussion:
+            #       Will it leak information if we log this.
             logging.info(f'running {shlex.split(action)}: done.')
 
     def get_needed_variables(self) -> list[str]:

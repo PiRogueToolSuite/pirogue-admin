@@ -1,3 +1,9 @@
+pirogue-admin (1.4.5) UNRELEASED; urgency=medium
+
+  * Add support for variable usage in actions
+
+ -- Christophe Andral <christophe@andral.fr>  Thu, 03 Oct 2024 10:33:37 +0200
+
 pirogue-admin (1.4.4) bookworm; urgency=medium
 
   * Add support for provisioning variables: when autodetection is
