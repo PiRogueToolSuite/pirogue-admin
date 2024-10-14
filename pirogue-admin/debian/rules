@@ -4,6 +4,9 @@ export PYBUILD_NAME=pirogue_admin
 %:
 	dh $@ --with quilt,python3 --buildsystem=pybuild
 
+override_dh_auto_test:
+	PYTHONPATH=$(CURDIR)/../pirogue-admin-api/src/python dh_auto_test
+
 override_dh_install:
 	dh_install
 	# Hide pirogue-admin CLI from users (meant for pirogue-base.postinst):
