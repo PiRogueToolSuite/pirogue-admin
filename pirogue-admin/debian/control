@@ -5,9 +5,9 @@ Maintainer: U+039b <hello@pts-project.org>
 Build-Depends:
  debhelper-compat (= 13),
  dh-python,
- pirogue-admin-api,
  python3-all,
  python3-grpcio,
+ python3-pirogue-admin-api,
  python3-setuptools,
  python3-yaml,
  quilt,
@@ -18,8 +18,8 @@ Rules-Requires-Root: no
 Package: pirogue-admin
 Architecture: all
 Depends:
- pirogue-admin-api,
  python3-grpcio,
+ python3-pirogue-admin-api,
  python3-requests,
  python3-systemd,
  python3-yaml,

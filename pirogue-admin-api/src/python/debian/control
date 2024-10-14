@@ -1,4 +1,4 @@
-Source: pirogue-admin-api
+Source: python3-pirogue-admin-api
 Section: misc
 Priority: optional
 Maintainer: U+039b <hello@pts-project.org>
@@ -14,7 +14,7 @@ Standards-Version: 4.5.1
 Homepage: https://github.com/PiRogueToolSuite/pirogue-admin
 Rules-Requires-Root: no
 
-Package: pirogue-admin-api
+Package: python3-pirogue-admin-api
 Architecture: all
 Depends:
  python3-grpcio,

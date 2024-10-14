@@ -7,6 +7,7 @@ Build-Depends:
  dh-python,
  python3-all,
  python3-grpcio,
+ python3-pirogue-admin-api,
  python3-setuptools,
  python3-yaml,
  quilt,
@@ -17,8 +18,8 @@ Rules-Requires-Root: no
 Package: pirogue-admin-client
 Architecture: all
 Depends:
- pirogue-admin-api,
  python3-grpcio,
+ python3-pirogue-admin-api,
  python3-yaml,
  ${python3:Depends},
  ${misc:Depends},
