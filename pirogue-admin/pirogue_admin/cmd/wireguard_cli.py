@@ -41,7 +41,7 @@ def main():
 
     # Set fallback values in case pirogue-admin's config.yaml file is missing or
     # doesn't contain the expected variables:
-    public_external_address = detect_external_ipv4_address()
+    public_external_address = str(detect_external_ipv4_address())
     isolated_address = '10.8.0.1'
     isolated_network = '10.8.0.0/24'
 
