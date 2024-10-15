@@ -1,5 +1,6 @@
-python3-pirogue-admin-api (1.0.0) UNRELEASED; urgency=medium
+python3-pirogue-admin-api (2.0.0) bookworm; urgency=medium
 
   * Initial release.
+  * Bump to v2 serie.
 
- -- Christophe Andral <christophe@andral.fr>  Thu, 10 Oct 2024 15:04:31 +0200
+ -- Christophe Andral <christophe@andral.fr>  Tue, 15 Oct 2024 11:45:23 +0200

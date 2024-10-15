@@ -1,8 +1,9 @@
-pirogue-admin (1.4.5) UNRELEASED; urgency=medium
+pirogue-admin (2.0.0) bookworm; urgency=medium
 
   * Add support for variable usage in actions
+  * Dump to v2 serie
 
- -- Christophe Andral <christophe@andral.fr>  Thu, 03 Oct 2024 10:33:37 +0200
+ -- Christophe Andral <christophe@andral.fr>  Tue, 15 Oct 2024 11:39:49 +0200
 
 pirogue-admin (1.4.4) bookworm; urgency=medium
 
