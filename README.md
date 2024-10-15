@@ -1,8 +1,23 @@
-# PiRogue Admin
+<div align="center">
+<img width="60px" src="https://pts-project.org/android-chrome-512x512.png">
+<h1>PiRogue Admin</h1>
+<p>
+This repository contains the source code of PiRogue administration agent. 
+</p>
+<p>
+License: GPLv3
+</p>
+<p>
+<a href="https://pts-project.org">Website</a> | 
+<a href="https://pts-project.org/docs/pirogue/overview/">Documentation</a> | 
+<a href="https://discord.gg/qGX73GYNdp">Support</a>
+</p>
+</div>
+
 
 ## Fresh PiRogue installation
 
-Prepare a VM or a Raspberry Pi with a debian-12 distro.
+Prepare a VM or a Raspberry Pi with Debian 12 freshly installed.
 
 SSH to it and grant root access.
 
