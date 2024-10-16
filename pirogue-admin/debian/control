@@ -26,6 +26,10 @@ Depends:
  qrencode,
  ${python3:Depends},
  ${misc:Depends},
+Conflicts:
+ pirogue-cli,
+Replaces:
+ pirogue-cli,
 Description: PiRogue administration tool
  This package features autodetection to facilitate PiRogue's deployment, and
  coordinates configuration file updates alongside relevant service restarts

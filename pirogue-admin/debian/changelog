@@ -1,3 +1,9 @@
+pirogue-admin (2.0.1) bookworm; urgency=medium
+
+  * Add Conflit/Replace with pirogue-cli in debian control rules
+
+ -- Christophe Andral <christophe@andral.fr>  Wed, 16 Oct 2024 12:41:52 +0200
+
 pirogue-admin (2.0.0) bookworm; urgency=medium
 
   * Add support for variable usage in actions
