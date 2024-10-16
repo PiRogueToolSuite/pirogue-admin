@@ -1,3 +1,11 @@
+pirogue-admin-client (2.0.1) UNRELEASED; urgency=medium
+
+  * Add 'dumb' bash-completion support for pirogue-admin-client
+  * Add isolated network port management support
+  * Align python version to deb pakcage version
+
+ -- Christophe Andral <christophe@andral.fr>  Mon, 21 Oct 2024 16:29:02 +0200
+
 pirogue-admin-client (2.0.0) bookworm; urgency=medium
 
   * Initial release.

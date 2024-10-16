@@ -88,13 +88,13 @@ class NetworkStub(object):
                 )
         self.CloseIsolatedPort = channel.unary_unary(
                 '/pirogue.admin.network.Network/CloseIsolatedPort',
-                request_serializer=google_dot_protobuf_dot_wrappers__pb2.UInt32Value.SerializeToString,
+                request_serializer=pirogue__admin__api_dot_network__pb2.ClosePortRequest.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
         self.ListIsolatedOpenPorts = channel.unary_unary(
                 '/pirogue.admin.network.Network/ListIsolatedOpenPorts',
                 request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                response_deserializer=pirogue__admin__api_dot_network__pb2.IsolatedPortList.FromString,
                 )
 
 
@@ -277,13 +277,13 @@ def add_NetworkServicer_to_server(servicer, server):
             ),
             'CloseIsolatedPort': grpc.unary_unary_rpc_method_handler(
                     servicer.CloseIsolatedPort,
-                    request_deserializer=google_dot_protobuf_dot_wrappers__pb2.UInt32Value.FromString,
+                    request_deserializer=pirogue__admin__api_dot_network__pb2.ClosePortRequest.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
             'ListIsolatedOpenPorts': grpc.unary_unary_rpc_method_handler(
                     servicer.ListIsolatedOpenPorts,
                     request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    response_serializer=pirogue__admin__api_dot_network__pb2.IsolatedPortList.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -545,7 +545,7 @@ class Network(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/pirogue.admin.network.Network/CloseIsolatedPort',
-            google_dot_protobuf_dot_wrappers__pb2.UInt32Value.SerializeToString,
+            pirogue__admin__api_dot_network__pb2.ClosePortRequest.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -563,6 +563,6 @@ class Network(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/pirogue.admin.network.Network/ListIsolatedOpenPorts',
             google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            pirogue__admin__api_dot_network__pb2.IsolatedPortList.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

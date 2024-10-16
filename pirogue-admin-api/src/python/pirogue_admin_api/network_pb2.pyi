@@ -7,6 +7,12 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ClosePortRequest(_message.Message):
+    __slots__ = ["port"]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    port: int
+    def __init__(self, port: _Optional[int] = ...) -> None: ...
+
 class IsolatedPort(_message.Message):
     __slots__ = ["destination_port", "port"]
     DESTINATION_PORT_FIELD_NUMBER: _ClassVar[int]

@@ -60,8 +60,8 @@ pirogue-admin-client wifi set-configuration [--ssid <ssid>] [--passphrase <passw
 
 ### Isolated network section
 ```shell
-pirogue-admin-client isolated-network open-port <port> [--destination-port <port>]
-pirogue-admin-client isolated-network close-port <port>
+pirogue-admin-client isolated-network open-port <incoming-port> [--outgoing-port <port>]
+pirogue-admin-client isolated-network close-port [--incoming-port <port>] 
 pirogue-admin-client isolated-network list-open-ports
 ```
 
@@ -77,4 +77,44 @@ pirogue-admin-client suricate-rules list-sources
 ```shell
 pirogue-admin-client dashboard get-configuration
 pirogue-admin-client dashboard set-configuration --password <password>
+```
+
+## Writing your own tool
+`pirogue-admin-client` is available as python library.
+Here are examples to illustrate its usage.
+
+### On a pirogue system
+If the tool you're writing will run directly on a PiRogue system,
+you to not need authentication information, 
+`PirogueAdminClientAdapter` will found them for you:
+```python
+from pirogue_admin_client import PirogueAdminClientAdapter
+
+paca = PirogueAdminClientAdapter()
+
+# Now, use it as you want
+current_config_map = paca.get_configuration()
+
+# etc ...
+```
+
+### Remote usage
+If you plan to run your tool directly, you will need administration
+authentication information:
+```python
+from pirogue_admin_client import PirogueAdminClientAdapter
+
+pirogue_host = 'my-pirogue-instance.pts-project.org'
+pirogue_port = 50051
+pirogue_admin_token = "a-long-token-to-retrieve-on-pirogue"
+
+paca = PirogueAdminClientAdapter(
+    host=pirogue_host,
+    port=pirogue_port,
+    token=pirogue_admin_token,)
+
+# Then, use it as usual
+current_config_map = paca.get_configuration()
+
+# etc ...
 ```

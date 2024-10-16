@@ -1,0 +1,54 @@
+#/usr/bin/env bash
+
+_pac_completions()
+{
+	#echo
+	#echo "    len: ${#COMP_WORDS[@]}"
+	#echo "words 0: '${COMP_WORDS[0]}'"
+	#echo "words 1: '${COMP_WORDS[1]}'"
+	#echo "  cword: '${COMP_CWORD}'"
+	#echo "   line: '${COMP_LINE}'"
+
+	declare -A pac_mapping
+
+	#not accessible features for now:
+	#pac_mapping['pirogue-admin-client']="system external-network isolated-network vpn wifi suricata-rules dashboard"
+	#pac_mapping['pirogue-admin-client system']="get-configuration-tree get-configuration get-operating-mode get-status get-packages-info get-hostname set-hostname get-locale set-locale get-timezone set-timezone list-connected-devices"
+	pac_mapping['pirogue-admin-client']="system external-network isolated-network vpn wifi dashboard"
+	pac_mapping['pirogue-admin-client system']="get-configuration-tree get-configuration get-operating-mode get-status get-packages-info get-hostname get-locale get-timezone list-connected-devices"
+	pac_mapping['pirogue-admin-client external-network']="reset-administration-token get-administration-token get-administration-certificate get-administration-clis enable-public-access disable-public-access"
+	pac_mapping['pirogue-admin-client isolated-network']="open-port close-port list-open-ports"
+	pac_mapping['pirogue-admin-client vpn']="list-peers get-peer get-peer-config add-peer delete-peer"
+	pac_mapping['pirogue-admin-client wifi']="get-configuration set-configuration"
+	pac_mapping['pirogue-admin-client wifi set-configuration']="--ssid --passphrase --country-code"
+	#not accessible for now: suricata-rules
+	#pac_mapping['pirogue-admin-client suricata-rules']="list-sources del-source add-source"
+	pac_mapping['pirogue-admin-client dashboard']="get-configuration set-configuration"
+	pac_mapping['pirogue-admin-client dashboard set-configuration']="--password"
+
+	map_ref=("${COMP_WORDS[@]}")
+	unset 'map_ref[${#map_ref[@]}-1]'
+	map_ref=$(IFS=\  ; echo "${map_ref[*]}")
+	
+	#echo "    ref: '${map_ref}'"
+
+	if test -v "pac_mapping['${map_ref}']"
+	then
+		last_proposal="${COMP_WORDS[$COMP_CWORD]}"
+		
+		#echo "   last: '${last_proposal}'"
+		#echo " exists: yes"
+		
+		cur_mapping="${pac_mapping["$map_ref"]}"
+		
+		#echo " cur_map: '${cur_mapping}'"
+		
+		COMPREPLY=($(compgen -W "${cur_mapping}" -- "${last_proposal}"))
+	else
+		#echo " exists: no"
+		return
+	fi
+
+}
+
+complete -F _pac_completions pirogue-admin-client

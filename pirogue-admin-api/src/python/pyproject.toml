@@ -8,7 +8,7 @@ namespaces = false
 
 [project]
 name = "pirogue-admin-api"
-version = "2.0.0"
+version = "2.0.1"
 description = "API definition of the communication protocol between the administration client and daemon for PiRogue."
 readme = "README.md"
 license = {text = "GPL-3.0+"}

@@ -2,7 +2,7 @@
 Description=PiRogue admin daemon
 
 [Service]
-ExecStart=/usr/sbin/pirogue-admin-daemon --commit
+ExecStart=/usr/sbin/pirogue-admin-daemon --commit --log-level INFO
 Restart=on-failure
 RestartSec=2
 Type=notify

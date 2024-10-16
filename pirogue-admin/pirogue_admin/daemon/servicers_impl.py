@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 import platform
 import random
 import subprocess
 import time
+
 from pathlib import Path
 from typing import List, Callable
 
@@ -14,6 +16,7 @@ from google.protobuf import empty_pb2
 from google.protobuf.json_format import ParseDict, MessageToDict
 from google.protobuf.wrappers_pb2 import StringValue
 
+from .utils import json_chain
 from pirogue_admin.cmd.cli import ADMIN_VAR_DIR
 from pirogue_admin.system_config import OperatingMode, detect_external_ipv4_address
 from pirogue_admin.system_config.wireguard import WgManager, WgPeer, WgConfig
@@ -22,7 +25,7 @@ from pirogue_admin_api import system_pb2, system_pb2_grpc
 from pirogue_admin_api import services_pb2, services_pb2_grpc
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
 from pirogue_admin_api.system_pb2 import Configuration, ConfigurationTree, OperatingModeResponse
-from pirogue_admin_api.network_pb2 import WifiConfiguration, VPNPeerList, VPNPeer
+from pirogue_admin_api.network_pb2 import IsolatedPort, IsolatedPortList, WifiConfiguration, VPNPeerList, VPNPeer
 from pirogue_admin_api.services_pb2 import DashboardConfiguration, SuricataRulesSource, SuricataRulesSources
 
 EMPTY = empty_pb2.Empty()
@@ -243,6 +246,9 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         return StringValue(value=config)
 
     def ResetAdministrationToken(self, request, context):
+
+        logging.info('reset-ing administration token')
+
         self._reset_token_func()
         return StringValue(value=self._get_token_func())
 
@@ -277,6 +283,9 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
             'PUBLIC_CONTACT_EMAIL': enable_request['email'],
             'ENABLE_PUBLIC_ACCESS': True,
         }
+
+        logging.info('enabling external public access')
+
         current_config = self._pcl.apply_configuration(new_conf_to_apply)
         return EMPTY
 
@@ -284,9 +293,131 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         new_conf_to_apply = {
             'ENABLE_PUBLIC_ACCESS': False,
         }
+
+        logging.info('disabling external public access')
+
         current_config = self._pcl.apply_configuration(new_conf_to_apply)
         return EMPTY
 
+    def _list_opened_ports(self):
+        json_result = subprocess.check_output(['nft', '-j', 'list', 'chain', 'inet', 'filter', 'pirogue_admin_chain'])
+        result = json.loads(json_result)
+        ports = {}
+        if 'nftables' in result:
+            for section in result['nftables']:
+                if 'rule' not in section:
+                    continue
+                rule_section = section['rule']
+
+                if json_chain(rule_section, 'expr.0.match.left.meta.key') == 'iifname':
+                    if json_chain(rule_section, 'expr.1.match.left.payload.field') != 'dport':
+                        continue
+                    dport = json_chain(rule_section, 'expr.1.match.right')
+                    if dport is None:
+                        continue
+                    handle = rule_section['handle']
+
+                    if str(dport) not in ports:
+                        ports[str(dport)] = {}
+                    ports[str(dport)]['handle_iif'] = str(handle)
+
+                if json_chain(rule_section, 'expr.0.match.left.meta.key') == 'oifname':
+                    if json_chain(rule_section, 'expr.1.match.left.payload.field') != 'sport':
+                        continue
+                    sport = json_chain(rule_section, 'expr.1.match.right')
+                    if sport is None:
+                        continue
+
+                    handle = rule_section['handle']
+
+                    if str(sport) not in ports:
+                        ports[str(sport)] = {}
+
+                    ports[str(sport)]['handle_oif'] = str(handle)
+
+        return ports
+
+    def ListIsolatedOpenPorts(self, request, context):
+        """
+        nft -j list chain inet filter pirogue_admin_chain
+        """
+
+        response = IsolatedPortList()
+
+        _ports = self._list_opened_ports()
+
+        for port_key in _ports:
+            response.ports.append(IsolatedPort(port=int(port_key)))
+
+        return response
+
+    def OpenIsolatedPort(self, request, context):
+        """
+        Add nf-table rule to accept and forward tcp trafic on the given port
+        to localhost.
+        Equivalent to the following command lines:
+        nft add rule inet filter pirogue_admin_chain iifname wg0 tcp dport 8080 accept
+        nft add rule inet filter pirogue_admin_chain oifname wg0 tcp sport 8080 tcp dport 8080
+        """
+
+        current_config = self._pcl.current_config
+
+        _ports = self._list_opened_ports()
+
+        requested_port = str(request.port)
+
+        if requested_port in _ports:
+            raise ValueError(f"port {requested_port} already opened")
+
+        logging.info(f'opening isolated port: {requested_port}')
+
+        open_step_1_result = subprocess.check_output([
+            'nft', 'add', 'rule', 'inet', 'filter', 'pirogue_admin_chain',
+            'iifname', current_config['ISOLATED_INTERFACE'],
+            'tcp', 'dport', requested_port,
+            'accept'])
+
+        open_step_2_result = subprocess.check_output([
+            'nft', 'add', 'rule', 'inet', 'filter', 'pirogue_admin_chain',
+            'oifname', current_config['ISOLATED_INTERFACE'],
+            'tcp', 'sport', requested_port,
+            'tcp', 'dport', requested_port])
+
+        return EMPTY
+
+    def CloseIsolatedPort(self, request, context):
+        """
+        Stop accepting connections on the given port (if specified),
+        Flush all rules otherwise.
+        Equivalent to the following command line:
+        nft flush chain inet filter pirogue_admin_chain
+        """
+
+        if request.port:
+            _ports = self._list_opened_ports()
+
+            requested_port = str(request.port)
+
+            if requested_port not in _ports:
+                raise ValueError(f"port {requested_port} not opened")
+
+            logging.info(f'closing isolated port: {request.port}')
+
+            close_step_1_result = subprocess.check_output([
+                'nft', 'delete', 'rule', 'inet', 'filter', 'pirogue_admin_chain',
+                'handle', _ports[requested_port]['handle_iif']])
+
+            close_step_2_result = subprocess.check_output([
+                'nft', 'delete', 'rule', 'inet', 'filter', 'pirogue_admin_chain',
+                'handle', _ports[requested_port]['handle_oif']])
+
+        else:
+            logging.info(f'closing all isolated ports')
+
+            close_result = subprocess.check_output([
+                'nft', 'flush', 'chain', 'inet', 'filter', 'pirogue_admin_chain'])
+
+        return EMPTY
 
 class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
 

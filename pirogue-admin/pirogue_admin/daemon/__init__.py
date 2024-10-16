@@ -116,7 +116,7 @@ class PiRogueAdminDaemon:
         self._generate_fresh_token()
 
     def _generate_fresh_token(self):
-        self._token = secrets.token_urlsafe(32)
+        self._token = secrets.token_urlsafe(64)
         self._save_configuration()
 
     def _save_configuration(self):

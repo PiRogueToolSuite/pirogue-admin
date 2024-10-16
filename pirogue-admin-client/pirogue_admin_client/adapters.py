@@ -17,7 +17,7 @@ from pirogue_admin_api import network_pb2, network_pb2_grpc
 from pirogue_admin_api import (
     PIROGUE_ADMIN_AUTH_HEADER, PIROGUE_ADMIN_AUTH_SCHEME,
     PIROGUE_ADMIN_TCP_PORT)
-from pirogue_admin_api.network_pb2 import WifiConfiguration, VPNPeerAddRequest, IsolatedPort, PublicAccessRequest
+from pirogue_admin_api.network_pb2 import WifiConfiguration, VPNPeerAddRequest, ClosePortRequest, IsolatedPort, PublicAccessRequest
 from pirogue_admin_api.services_pb2 import DashboardConfiguration, SuricataRulesSource
 from pirogue_admin_client.types import OperatingMode
 
@@ -222,19 +222,21 @@ class NetworkAdapter(BaseAdapter):
 
     def list_isolated_open_ports(self):
         answer = self._stub_network.ListIsolatedOpenPorts(EMPTY)
-        answer = MessageToDict(answer)
+        answer = MessageToDict(answer, preserving_proto_field_name=True)
         if 'ports' in answer:
             answer = answer['ports']
         return answer
 
-    def open_isolated_port(self, port: int, destination_port: int = None):
-        request = IsolatedPort(port=int(port))
-        if destination_port:
-            request.destination_port = int(destination_port)
+    def open_isolated_port(self, incoming_port: int, outgoing_port: int = None):
+        request = IsolatedPort(port=int(incoming_port))
+        if outgoing_port:
+            request.destination_port = int(outgoing_port)
         answer = self._stub_network.OpenIsolatedPort(request)
 
-    def close_isolated_port(self, port: int):
-        request = UInt32Value(value=int(port))
+    def close_isolated_port(self, incoming_port: int = None):
+        request = ClosePortRequest()
+        if incoming_port:
+            request.port = int(incoming_port)
         answer = self._stub_network.CloseIsolatedPort(request)
 
 

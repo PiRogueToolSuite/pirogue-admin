@@ -203,14 +203,14 @@ def main():
     isolated_open_port = isolated_subparser.add_parser(
         'open-port',
         help='open one port on EXTERNAL interface')
-    isolated_open_port.add_argument('port', type=int)
-    isolated_open_port.add_argument('--destination-port', type=int, default=None)
+    isolated_open_port.add_argument('incoming_port', type=int)
+    isolated_open_port.add_argument('--outgoing-port', type=int, default=None)
     isolated_open_port.set_defaults(func='open_isolated_port')
     #
     isolated_close_port = isolated_subparser.add_parser(
         'close-port',
-        help='close one port on EXTERNAL interface')
-    isolated_open_port.add_argument('port', type=int)
+        help='close all opened ports on EXTERNAL interface. close only one specific port if given')
+    isolated_close_port.add_argument('--incoming-port', type=int, default=None)
     isolated_close_port.set_defaults(func='close_isolated_port')
     #
     isolated_list_open_ports = isolated_subparser.add_parser(
@@ -278,6 +278,8 @@ examples:
     wifi_set_configuration.add_argument('--country-code', type=str, default=None)
     wifi_set_configuration.set_defaults(func='set_wifi_configuration')
 
+    """
+    # FIXME: Suricate rules management disabled for now
     #
     # Suricata rules related subparser
     suricata_rules_subparser = suricata_rules_parser.add_subparsers(title="Suricata administration")
@@ -299,6 +301,7 @@ examples:
     sr_add_suricata_rules_source.add_argument('name')
     sr_add_suricata_rules_source.add_argument('url')
     sr_add_suricata_rules_source.set_defaults(func='add_suricata_rules_source')
+    """
 
     #
     # Dashboard related subparser

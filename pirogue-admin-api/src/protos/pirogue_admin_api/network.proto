@@ -29,8 +29,8 @@ service Network {
 
   /* 'Firewall' */
   rpc OpenIsolatedPort (IsolatedPort) returns (google.protobuf.Empty) {}
-  rpc CloseIsolatedPort (google.protobuf.UInt32Value) returns (google.protobuf.Empty) {}
-  rpc ListIsolatedOpenPorts (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc CloseIsolatedPort (ClosePortRequest) returns (google.protobuf.Empty) {}
+  rpc ListIsolatedOpenPorts (google.protobuf.Empty) returns (IsolatedPortList) {}
 }
 
 message VPNPeer {
@@ -67,4 +67,8 @@ message IsolatedPort {
 
 message IsolatedPortList {
   repeated IsolatedPort ports = 1;
+}
+
+message ClosePortRequest {
+  optional uint32 port = 1;
 }
