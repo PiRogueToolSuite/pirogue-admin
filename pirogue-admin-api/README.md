@@ -6,7 +6,7 @@ Common interface to PiRogue administration bricks.
 ## Motivation
 PiRogue is now proudly supporting cloud deployment.
 This project is the base local AND remote management system definition.
-Both `pirogue-admin` and `pirogue-admin-client` are supposed to depreciate `pirogue_cli` package.
+Both `pirogue-admin` and `pirogue-admin-client` are supposed to depreciate `pirogue-cli` package.
 The `pirogue-admin-api` package is the common definition between `pirogue-admin` daemon and the `pirogue-admin-client` client (which also provides cli tools).
 
 ## Scope
@@ -25,8 +25,8 @@ Networking:
 Services:
   - Grafana administration
   - Suricata detection rules management
-
 ```
+
 # Development
 ## Generate python stubs
 ```python
