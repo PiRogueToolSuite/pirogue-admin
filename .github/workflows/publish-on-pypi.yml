@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        python_package_dir: [ "pirogue-admin-client", "pirogue-admin-api/src/python" ]
+        python_package_dir: [ 'pirogue-admin-client', 'pirogue-admin-api/src/python' ]
 
     name: Build distribution 📦
     runs-on: ubuntu-latest
@@ -17,7 +17,8 @@ jobs:
       run:
         working-directory: ${{ matrix.python_package_dir }}
 
-    if: ${{ github.event_name }} == "push" || ${{ github.event_name }} == "release"
+    if: github.event_name == 'push' || github.event_name == 'release'
+
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -33,7 +34,7 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
     - name: Store the distribution packages
-      if: ${{ github.event_name }} == "release"
+      if: github.event_name == 'release'
       uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
@@ -49,8 +50,10 @@ jobs:
       url: https://pypi.org/p/pcapng-utils
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
-    if: startsWith(github.ref, 'refs/tags/') && ${{ github.event_name }} == "release"  # only publish to PyPI on tag pushes
+
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'release'  # only publish to PyPI on tag pushes
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ${{ matrix.python_package_dir }}
@@ -65,13 +68,14 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
 
   github-release:
-    if: ${{ github.event_name }} == "release"
     name: >-
       Sign the Python 🐍 distribution 📦 with Sigstore
       and upload them to GitHub Release
     needs:
     - publish-to-pypi
     runs-on: ubuntu-latest
+
+    if: github.event_name == 'release'
     defaults:
       run:
         working-directory: ${{ matrix.python_package_dir }}
