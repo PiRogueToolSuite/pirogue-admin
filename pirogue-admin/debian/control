@@ -5,6 +5,7 @@ Maintainer: U+039b <hello@pts-project.org>
 Build-Depends:
  debhelper-compat (= 13),
  dh-python,
+ pybuild-plugin-pyproject,
  python3-all,
  python3-grpcio,
  python3-pirogue-admin-api,
@@ -31,6 +32,6 @@ Conflicts:
 Replaces:
  pirogue-cli,
 Description: PiRogue administration tool
- This package features autodetection to facilitate PiRogue's deployment, and
+ This package features auto-detection to facilitate PiRogue's deployment, and
  coordinates configuration file updates alongside relevant service restarts
  whenever the configuration is updated.

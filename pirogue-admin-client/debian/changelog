@@ -1,6 +1,6 @@
 pirogue-admin-client (2.0.0) bookworm; urgency=medium
 
   * Initial release.
-  * Bump to v2 serie.
+  * Bump to v2.0.0.
 
  -- Christophe Andral <christophe@andral.fr>  Tue, 15 Oct 2024 11:51:40 +0200

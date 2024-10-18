@@ -5,9 +5,10 @@ Maintainer: U+039b <hello@pts-project.org>
 Build-Depends:
  debhelper-compat (= 13),
  dh-python,
+ pybuild-plugin-pyproject,
  python3-all,
- python3-grpcio,
  python3-setuptools,
+ python3-grpcio,
  python3-yaml,
  quilt,
 Standards-Version: 4.5.1
@@ -22,5 +23,5 @@ Depends:
  ${python3:Depends},
  ${misc:Depends},
 Description: PiRogue administration tool API
- This package describes and provides python pirogue administration API
- for both server and clients python implementation.
+ This package defines the communication the communication protocol
+ between the administration client and daemon for PiRogue.
