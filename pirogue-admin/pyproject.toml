@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pirogue_admin*"]
+namespaces = false
+
+
+[project]
+name = "pirogue-admin"
+version = "2.0.0"
+description = "Admin management for the PiRogue"
+readme = "README.md"
+license = {text = "GPL-3.0+"}
+
+requires-python = ">= 3.9"
+dependencies = [
+  "grpcio",
+  "pirogue_admin_api",
+  "pyyaml",
+  "requests",
+  "systemd"
+]
+
+authors = [
+  {name = "Cyril Brulebois", email = "cyril@debamax.com"},
+]
+
+maintainers = [
+  {name = "U+039b", email = "hello@pts-project.org"}
+]
+
+[project.scripts]
+pirogue-admin = "pirogue_admin.cmd.cli:main"
+pirogue-admin-daemon = "pirogue_admin.daemon:serve"
+pirogue-admin-wireguard = "pirogue_admin.cmd.wireguard_cli:main"
+
+[project.urls]
+repository = "https://github.com/PiRogueToolSuite/pirogue-admin"
+issues = "https://github.com/PiRogueToolSuite/pirogue-admin/issues"
