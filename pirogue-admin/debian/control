@@ -8,7 +8,7 @@ Build-Depends:
  pybuild-plugin-pyproject,
  python3-all,
  python3-grpcio,
- python3-pirogue-admin-api,
+ python3-pirogue-admin-api (= 2.0.1),
  python3-setuptools,
  python3-yaml,
  quilt,
@@ -20,7 +20,7 @@ Package: pirogue-admin
 Architecture: all
 Depends:
  python3-grpcio,
- python3-pirogue-admin-api,
+ python3-pirogue-admin-api (= 2.0.1),
  python3-requests,
  python3-systemd,
  python3-yaml,
