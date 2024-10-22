@@ -10,6 +10,7 @@ import argparse
 import copy
 import logging
 import os
+import secrets
 import sys
 from pathlib import Path
 from typing import TextIO
@@ -72,6 +73,9 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
 
     If that didn't work, propose “vpn” mode, which will eventually make another
     interface available.
+
+    Additionally, replace some historically-static variables with generated
+    secrets.
     """
     mode, external_interface, isolated_interfaces = suggest_operating_mode()
 
@@ -146,6 +150,14 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
     # By default, public exposure is disabled
     public_access = False
 
+    # We want an admin password with 64 base64 URL-safe characters and a Wi-Fi
+    # passphrase that's 16 hexadecimal digits, which means requesting 48 and
+    # 8 bytes respectively:
+    generated_secrets = {
+        'DASHBOARD_PASSWORD': secrets.token_urlsafe(48),
+        'WIFI_PASSPHRASE': secrets.token_hex(8),
+    }
+
     return {
         'ISOLATED_NETWORK': str(isolated_network),
         'ISOLATED_ADDRESS': str(isolated_address),
@@ -156,6 +168,8 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
         'ENABLE_DHCP': enable_dhcp,
         # Things that might be accumulated depending on the operating mode:
         **extras,
+        # Those are computed above:
+        **generated_secrets,
         # This is for SystemConfig (pirogue-admin):
         'SYSTEM_OPERATING_MODE': mode.value,
         # Ensure no conflict with HOSTNAME exiting env. variable
