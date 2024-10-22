@@ -8,7 +8,6 @@ Known limitations:
 
 import argparse
 import copy
-import ipaddress
 import logging
 import os
 import sys
