@@ -10,6 +10,7 @@ import argparse
 import copy
 import logging
 import os
+import socket
 import secrets
 import sys
 from pathlib import Path
@@ -143,8 +144,7 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
     # to avoid running a rogue DHCP server).
     enable_dhcp = True
 
-    # FIXME: HOSTNAME hardcoded for now
-    system_hostname = 'pirogue'
+    system_hostname = socket.gethostname()
     external_domain_name = f'{system_hostname}.local'
     external_contact_email = f'root@{system_hostname}.local'
     # By default, public exposure is disabled
