@@ -175,7 +175,6 @@ def autodetect_and_provision(c_ctx: ConfigurationContext):
     autodetected settings.
     """
     settings = autodetect_settings(c_ctx)
-    #print(yaml.safe_dump(settings))
 
     user_config_path = Path(c_ctx.var_dir, 'user.config.yaml')
     if user_config_path.exists():
