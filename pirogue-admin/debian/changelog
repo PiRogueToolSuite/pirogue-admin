@@ -1,7 +1,6 @@
-pirogue-admin (2.0.2) UNRELEASED; urgency=medium
+pirogue-admin (2.0.2) bookworm; urgency=medium
 
   * Add isolated network port management
-  * Align python version to deb package version
   * Bump up administration token length
 
  -- Christophe Andral <christophe@andral.fr>  Mon, 21 Oct 2024 16:25:34 +0200

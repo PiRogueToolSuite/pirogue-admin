@@ -1,7 +1,6 @@
-python3-pirogue-admin-api (2.0.1) UNRELEASED; urgency=medium
+python3-pirogue-admin-api (2.0.1) bookworm; urgency=medium
 
   * Fix proto for managing isolated ports
-  * Align python lib version with deb package version
 
  -- Christophe Andral <christophe@andral.fr>  Mon, 21 Oct 2024 16:18:06 +0200
 
