@@ -1,10 +1,10 @@
-pirogue-admin (2.0.3) UNRELEASED; urgency=medium
+pirogue-admin (2.0.3) bookworm; urgency=medium
 
   * Hardcode python3-pirogue-admin-api version in (Build-)Depends, since
     it's critical to have protocol and code aligned. Currently, that means
     version 2.0.1.
 
- -- Cyril Brulebois <cyril@debamax.com>  Tue, 22 Oct 2024 17:38:33 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Tue, 22 Oct 2024 17:39:09 +0200
 
 pirogue-admin (2.0.2) bookworm; urgency=medium
 
