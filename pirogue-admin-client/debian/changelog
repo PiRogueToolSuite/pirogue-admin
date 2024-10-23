@@ -4,7 +4,7 @@ pirogue-admin-client (2.0.2) bookworm; urgency=medium
     it's critical to have protocol and code aligned. Currently, that means
     version 2.0.1.
 
- -- Cyril Brulebois <cyril@debamax.com>  Tue, 22 Oct 2024 17:37:57 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Wed, 23 Oct 2024 02:45:39 +0200
 
 pirogue-admin-client (2.0.1) bookworm; urgency=medium
 
