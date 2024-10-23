@@ -18,6 +18,10 @@ from typing import TextIO
 
 import yaml
 
+from rich.box import DOUBLE
+from rich.console import Console
+from rich.panel import Panel
+
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
 from pirogue_admin.system_config import OperatingMode
 from pirogue_admin.system_config import (detect_ipv4_networks,
@@ -57,6 +61,27 @@ def check_consistency(c_ctx: ConfigurationContext):
                    default_flow_style=False,
                    encoding="utf-8",
                    allow_unicode=True)
+
+
+def warn_about_secrets(generated_secrets):
+    """
+    Display a warning about generated secrets to standard error.
+
+    This makes it possible to warn users without interfering with dumping the
+    configuration to the standard output.
+    """
+    msg = 'The following secrets were generated:\n'
+    for key, value in generated_secrets.items():
+        msg += f'  {key} = {value}\n'
+
+    msg += '\nSee the documentation for instructions on how to change them:\n'
+    msg += '  https://pts-project.org/docs/pirogue/version_2.x/configuration/'
+
+    color = 'bright_green'
+    Console(stderr=True).print(Panel(f'[{color}]{msg}[/{color}]',
+                                     style='bold',
+                                     border_style=color,
+                                     box=DOUBLE))
 
 
 def autodetect_settings(_c_ctx: ConfigurationContext):
@@ -157,6 +182,7 @@ def autodetect_settings(_c_ctx: ConfigurationContext):
         'DASHBOARD_PASSWORD': secrets.token_urlsafe(48),
         'WIFI_PASSPHRASE': secrets.token_hex(8),
     }
+    warn_about_secrets(generated_secrets)
 
     return {
         'ISOLATED_NETWORK': str(isolated_network),
