@@ -176,3 +176,39 @@ def format_certificate_path_prefix(value: str,
     else:
         # Must be self-signed path like
         return f'/var/lib/pirogue/admin/pirogue-external-exposure'
+
+
+@formatter
+def lan_accessibility_nginx_boolean(value: str,
+                                    _variables: dict[str, str]):
+    if bool(value):
+        # ENABLE_PUBLIC_ACCESS IS ENABLE
+        return 'true'
+
+    if _variables['EXTERNAL_ADDRESS'] != _variables['PUBLIC_EXTERNAL_ADDRESS']:
+        return 'true'
+
+    return 'false'
+
+
+@formatter
+def wan_accessibility_nginx_boolean(value: str,
+                                    _variables: dict[str, str]):
+    if bool(value):
+        # ENABLE_PUBLIC_ACCESS IS ENABLE
+        return 'true'
+
+    return 'false'
+
+
+@formatter
+def force_secure_redirection_nginx_boolean(value: str,
+                                           _variables: dict[str, str]):
+    if bool(value):
+        # ENABLE_PUBLIC_ACCESS IS ENABLE
+        return 'true'
+
+    if _variables['EXTERNAL_ADDRESS'] == _variables['PUBLIC_EXTERNAL_ADDRESS']:
+        return 'true'
+
+    return 'false'

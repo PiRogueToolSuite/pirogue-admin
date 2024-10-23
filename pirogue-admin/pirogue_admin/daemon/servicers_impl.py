@@ -290,8 +290,13 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         return EMPTY
 
     def DisableExternalPublicAccess(self, request, context):
+        current_config = self._pcl.current_config
+
+        # Restores a default FQDN before
+        # returning back to self-signed cert
         new_conf_to_apply = {
             'ENABLE_PUBLIC_ACCESS': False,
+            'PUBLIC_DOMAIN_NAME': f"{current_config['SYSTEM_HOSTNAME']}.local",
         }
 
         logging.info('disabling external public access')
