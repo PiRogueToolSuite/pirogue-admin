@@ -5,6 +5,7 @@ pirogue-admin (2.0.4) UNRELEASED; urgency=medium
     installation, or when pirogue-base is upgraded from 1.x to 2.x.
   * Display a colorful warning accordingly, pointing at the online
     documentation for instructions on how to change them.
+  * Add python3-rich to Depends accordingly.
 
  -- Cyril Brulebois <cyril@debamax.com>  Wed, 23 Oct 2024 01:41:44 +0200
 
