@@ -59,7 +59,6 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='PiRogue administration client',
-        epilog='Example:'
     )
     parser.add_argument('--token',
                         help='use TOKEN for authentication against PiRogueAdmin server')
@@ -73,7 +72,9 @@ def main():
                         help='set PiRogueAdmin target port to be PORT')
 
     parser.add_argument('--certificate', default=argparse.SUPPRESS,
-                        help='certificate to use if not public')
+                        help="certificate file to use if not public, use explicit 'public' value"
+                             " if you want to force check against publicly known certificate"
+                             " (like letsencrypt certificate)")
 
     parser.add_argument('--save-configuration', '--save',
                         action='store_true',
@@ -322,7 +323,10 @@ examples:
 
     certification_str = None
     if 'certificate' in args:
-        certification_str = Path(args.certificate).read_text()
+        if args.certificate == 'public':
+            certification_str = 'public'
+        else:
+            certification_str = Path(args.certificate).read_text()
 
     client_ctx_call = ClientCallContext(args.host, args.port, args.token, certification_str)
 

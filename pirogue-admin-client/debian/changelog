@@ -1,3 +1,9 @@
+pirogue-admin-client (2.0.3) UNRELEASED; urgency=medium
+
+  * Support CN certificate dynamic decoding
+
+ -- Christophe Andral <christophe@andral.fr>  Wed, 23 Oct 2024 11:47:55 +0200
+
 pirogue-admin-client (2.0.2) bookworm; urgency=medium
 
   * Hardcode python3-pirogue-admin-api version in (Build-)Depends, since
