@@ -1,10 +1,10 @@
-pirogue-admin-client (2.0.3) UNRELEASED; urgency=medium
+pirogue-admin-client (2.0.3) bookworm; urgency=medium
 
   * Support CN certificate dynamic decoding
   * Add python3-cryptography to (Build-)Depends accordingly
   * Add qrencode to Recommends
 
- -- Christophe Andral <christophe@andral.fr>  Wed, 23 Oct 2024 11:47:55 +0200
+ -- Christophe Andral <christophe@andral.fr>  Wed, 23 Oct 2024 21:37:48 +0200
 
 pirogue-admin-client (2.0.2) bookworm; urgency=medium
 
