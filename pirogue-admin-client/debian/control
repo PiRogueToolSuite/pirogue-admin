@@ -26,6 +26,8 @@ Depends:
  python3-yaml,
  ${python3:Depends},
  ${misc:Depends},
+Recommends:
+ qrencode,
 Description: PiRogue administration client
  This package allows the user to administrate a PiRogue instance locally
  and remotely.
