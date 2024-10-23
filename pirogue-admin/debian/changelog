@@ -1,4 +1,4 @@
-pirogue-admin (2.0.4) UNRELEASED; urgency=medium
+pirogue-admin (2.0.4) bookworm; urgency=medium
 
   * Generate DASHBOARD_PASSWORD and WIFI_PASSPHRASE when pirogue-admin is
     called with --autodetect. That's meant to happen once during initial
@@ -7,7 +7,7 @@ pirogue-admin (2.0.4) UNRELEASED; urgency=medium
     documentation for instructions on how to change them.
   * Add python3-rich to Depends accordingly.
 
- -- Cyril Brulebois <cyril@debamax.com>  Wed, 23 Oct 2024 01:41:44 +0200
+ -- Cyril Brulebois <cyril@debamax.com>  Wed, 23 Oct 2024 02:41:28 +0200
 
 pirogue-admin (2.0.3) bookworm; urgency=medium
 
