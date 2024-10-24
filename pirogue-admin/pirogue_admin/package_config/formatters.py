@@ -185,6 +185,10 @@ def lan_accessibility_nginx_boolean(value: str,
         # ENABLE_PUBLIC_ACCESS IS ENABLE
         return 'true'
 
+    if 'PUBLIC_EXTERNAL_ADDRESS' not in _variables:
+        # Not in VPN mode
+        return 'true'
+
     if _variables['EXTERNAL_ADDRESS'] != _variables['PUBLIC_EXTERNAL_ADDRESS']:
         return 'true'
 
@@ -207,6 +211,10 @@ def force_secure_redirection_nginx_boolean(value: str,
     if bool(value):
         # ENABLE_PUBLIC_ACCESS IS ENABLE
         return 'true'
+
+    if 'PUBLIC_EXTERNAL_ADDRESS' not in _variables:
+        # Not in VPN mode
+        return 'false'
 
     if _variables['EXTERNAL_ADDRESS'] == _variables['PUBLIC_EXTERNAL_ADDRESS']:
         return 'true'
