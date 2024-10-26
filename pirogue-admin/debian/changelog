@@ -1,4 +1,4 @@
-pirogue-admin (2.0.5) UNRELEASED; urgency=medium
+pirogue-admin (2.0.5) bookworm; urgency=medium
 
   * Add new formatters to describe complex case around the different network
     configurations. Used by pirogue-external-exposure.
