@@ -85,6 +85,13 @@ def detect_network_interfaces() -> dict[str, DevType]:
         if net_dir.name == 'lo':
             continue
 
+        # Exclude anything that doesn't feature a type (e.g. bonding_masters
+        # which is a regular file that appears when the bonding module is
+        # loaded). See also: Documentation/ABI/testing/sysfs-class-net in the
+        # Linux source tree.
+        if not (net_dir / 'type').exists():
+            continue
+
         # Unless we know better, an interface is Ethernet-like:
         devtype = DevType.ETHERNET
 

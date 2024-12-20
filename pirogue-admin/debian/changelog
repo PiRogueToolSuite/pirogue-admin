@@ -1,3 +1,14 @@
+pirogue-admin (2.0.6) UNRELEASED; urgency=medium
+
+  * Improve interface detection, by making sure each /sys/class/net entry
+    features a `type` (see Documentation/ABI/testing/sysfs-class-net).
+    This fixes autodetection when the `bonding` module is loaded, as it
+    maintains a regular file called `bonding_masters` that would otherwise
+    be considered a valid candidate as an isolated interface. With thanks
+    to the Qurium team for the report!
+
+ -- Cyril Brulebois <cyril@debamax.com>  Fri, 20 Dec 2024 13:32:58 +0100
+
 pirogue-admin (2.0.5) bookworm; urgency=medium
 
   * Add new formatters to describe complex case around the different network
