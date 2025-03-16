@@ -11,6 +11,11 @@ override_dh_install:
 	mv debian/pirogue-admin/usr/bin/pirogue-admin debian/pirogue-admin/usr/sbin
 	mv debian/pirogue-admin/usr/bin/pirogue-admin-daemon debian/pirogue-admin/usr/sbin
 	mv debian/pirogue-admin/usr/bin/pirogue-admin-wireguard debian/pirogue-admin/usr/sbin
+	mv debian/pirogue-admin/usr/bin/network-configuration-monitor debian/pirogue-admin/usr/sbin
+
+override_dh_installsystemd:
+	dh_installsystemd pirogue-admin.service
+	dh_installsystemd network-configuration-monitor.service	--no-start
 
 override_dh_builddeb:
 	dh_builddeb -- -Zxz

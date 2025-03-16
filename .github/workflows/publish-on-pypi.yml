@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        python_package_dir: [ 'pirogue-admin-client', 'pirogue-admin-api/src/python' ]
+        python_package_dir: [ 'pirogue-admin-api/src/python' ]
 
     name: Build distribution 📦
     runs-on: ubuntu-latest
@@ -47,7 +47,7 @@ jobs:
     - build
     environment:
       name: pypi
-      url: https://pypi.org/p/pcapng-utils
+      url: https://pypi.org/p/pirogue-admin-api
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
@@ -91,7 +91,7 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: Sign the dists with Sigstore
-      uses: sigstore/gh-action-sigstore-python@v2.1.1
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
         inputs: >-
           ./dist/*.tar.gz

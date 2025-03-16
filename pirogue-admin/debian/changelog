@@ -1,3 +1,10 @@
+pirogue-admin (2.0.7) bookworm; urgency=medium
+
+  * Security patch to fix the vulnerability 3.1 [HIGH]: add the monitoring of
+    the network configuration and reconfigure the PiRogue accordingly
+
+ -- U+039b <hello@pts-project.org>  Wed, 12 Mar 2025 16:32:12 +0100
+
 pirogue-admin (2.0.6) bookworm; urgency=medium
 
   * Improve interface detection, by making sure each /sys/class/net entry

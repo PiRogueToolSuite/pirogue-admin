@@ -1,0 +1,13 @@
+[Unit]
+Description=Monitor changes of network configuration
+After=network-pre.target
+Before=network.target
+DefaultDependencies=no
+
+[Service]
+ExecStart=/usr/sbin/network-configuration-monitor
+Restart=always
+Environment=NET_CONFIG_MONITOR_LOGLEVEL=debug
+
+[Install]
+RequiredBy=network.target

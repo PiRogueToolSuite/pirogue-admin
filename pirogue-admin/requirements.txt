@@ -1,5 +1,6 @@
 grpcio==1.51.3
 pirogue_admin_api
+pyroute2
 pyyaml
 requests
 setuptools
