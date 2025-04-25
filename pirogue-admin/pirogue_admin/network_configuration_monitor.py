@@ -351,7 +351,10 @@ class NetworkConfigurationMonitor:
             self.debug(event)
             self._new_ip_address_assigned(event)
         elif event['event'] in ['RTM_NEWNEIGH', 'RTM_DELNEIGH'] and event['ifindex'] == self.isolated_interface.index:
-            self.debug_neighbours()
+            try:
+                self.debug_neighbours()
+            except:
+                pass
 
     def run(self):
         """

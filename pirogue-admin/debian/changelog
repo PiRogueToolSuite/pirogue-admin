@@ -1,3 +1,10 @@
+pirogue-admin (2.0.8) bookworm; urgency=medium
+
+  * Disable listing neighbours when no IP v4 is assigned to the external 
+    interface
+
+ -- U+039b <hello@pts-project.org>  Fri, 25 Apr 2025 14:44:22 +0200
+
 pirogue-admin (2.0.7) bookworm; urgency=medium
 
   * Security patch to fix the vulnerability 3.1 [HIGH]: add the monitoring of
