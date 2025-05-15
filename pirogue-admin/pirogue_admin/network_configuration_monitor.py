@@ -293,9 +293,12 @@ class NetworkConfigurationMonitor:
         logging.info(f'⚡️ Reconfiguring the external interface: {configured_external_addr} -> {new_ip_address}')
         ctx = ConfigurationContext(WORKING_ROOT_DIR, ADMIN_CONFIG_DIR, ADMIN_VAR_DIR, True, False)
         loader = PackageConfigLoader(ctx)
-        new_configuration = {EXTERNAL_ADDRESS_KEY: str(new_ip_address)}
+        new_configuration = {
+            EXTERNAL_ADDRESS_KEY: str(new_ip_address),
+            EXTERNAL_INTERFACE_KEY: configured_external_iface
+        }
         try:
-            loader.apply_configuration(new_configuration, False)
+            loader.apply_configuration(new_configuration, True)
         except Exception as e:
             logging.error('Unable to reconfigure the PiRogue, contact your administrator.')
             logging.exception(e)

@@ -1,3 +1,9 @@
+pirogue-admin (2.0.9) bookworm; urgency=medium
+
+  * Redeploy the entire configuration when the external IP address has changed
+
+ -- U+039b <hello@pts-project.org>  Thu, 15 May 2025 16:24:11 +0200
+
 pirogue-admin (2.0.8) bookworm; urgency=medium
 
   * Disable listing neighbours when no IP v4 is assigned to the external 
