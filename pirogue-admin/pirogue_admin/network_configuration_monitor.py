@@ -1,8 +1,9 @@
 
 import socket
 import os
-from ipaddress import IPv4Address, IPv6Address, ip_address
+from ipaddress import IPv4Address, IPv6Address, ip_address, IPv4Network
 
+from pirogue_admin.system_config import detect_ipv4_networks
 from pyroute2.netlink.rtnl.ifaddrmsg import ifaddrmsg
 from pyroute2.netlink.rtnl.ifinfmsg import ifinfmsg
 
@@ -87,6 +88,10 @@ class IfaceWrapper:
         return ip_list
 
     @property
+    def ipv4_networks(self) -> str:
+        return ','.join(detect_ipv4_networks(self.name))
+
+    @property
     def ipv6(self) -> list[IPv6Address]:
         ip_list = []
         events: list[ifaddrmsg] = list(self._ipr.get_addr(family=10, index=self.index))
@@ -107,6 +112,7 @@ class IfaceWrapper:
 
 EXTERNAL_INTERFACE_KEY = 'EXTERNAL_INTERFACE'
 EXTERNAL_ADDRESS_KEY = 'EXTERNAL_ADDRESS'
+EXTERNAL_NETWORKS_KEY = 'EXTERNAL_NETWORKS'
 ISOLATED_INTERFACE_KEY = 'ISOLATED_INTERFACE'
 ISOLATED_ADDRESS_KEY = 'ISOLATED_ADDRESS'
 
@@ -254,10 +260,10 @@ class NetworkConfigurationMonitor:
         external_iface_name = self.system_configuration.get(EXTERNAL_INTERFACE_KEY)
         external_iface = self.get_iface_by_name(external_iface_name)
         if external_iface.ipv4:
-            self.reconfigure_external_address(external_iface.ipv4[0])
+            self.reconfigure_external_address(external_iface, external_iface.ipv4[0])
 
 
-    def reconfigure_external_address(self, new_ip_address: IPv4Address):
+    def reconfigure_external_address(self, iface:IfaceWrapper, new_ip_address: IPv4Address):
         """
         Reconfigures the external interface with a new external IPv4 address.
 
@@ -270,6 +276,7 @@ class NetworkConfigurationMonitor:
         In case of an error during reconfiguration, it restores the previous configuration.
 
         Args:
+            iface (IfaceWrapper): The network interface to be reconfigured.
             new_ip_address (IPv4Address): The new IPv4 address to be assigned to the external interface.
 
         Exceptions:
@@ -280,8 +287,9 @@ class NetworkConfigurationMonitor:
             - If the addresses differ, updates the configuration using `ConfigurationContext` and `PackageConfigLoader`.
             - In the event of a failure, reverts to the original IP address and reloads the system state.
         """
-        configured_external_iface, configured_external_addr = (
+        configured_external_iface, configured_external_networks, configured_external_addr = (
             self.system_configuration.get(EXTERNAL_INTERFACE_KEY),
+            self.system_configuration.get(EXTERNAL_NETWORKS_KEY),
             ip_address(self.system_configuration.get(EXTERNAL_ADDRESS_KEY)),
         )
         if configured_external_addr == new_ip_address:
@@ -295,16 +303,21 @@ class NetworkConfigurationMonitor:
         loader = PackageConfigLoader(ctx)
         new_configuration = {
             EXTERNAL_ADDRESS_KEY: str(new_ip_address),
+            EXTERNAL_NETWORKS_KEY: iface.ipv4_networks,
             EXTERNAL_INTERFACE_KEY: configured_external_iface
         }
         try:
-            loader.apply_configuration(new_configuration, True)
+            loader.apply_configuration(new_configuration, False)
         except Exception as e:
             logging.error('Unable to reconfigure the PiRogue, contact your administrator.')
             logging.exception(e)
             self.debug(None)
             logging.error('Reverting to the previously configured IP address.')
-            new_configuration = {EXTERNAL_ADDRESS_KEY: str(configured_external_addr)}
+            new_configuration = {
+                EXTERNAL_ADDRESS_KEY: str(configured_external_addr),
+                EXTERNAL_INTERFACE_KEY: configured_external_iface,
+                EXTERNAL_NETWORKS_KEY: configured_external_networks,
+            }
             loader.apply_configuration(new_configuration, False)
         finally:
             self.load_state()
@@ -335,10 +348,10 @@ class NetworkConfigurationMonitor:
             return
         logging.info(f'Event received for the external iface {configured_external_iface}/{event_ipaddr}')
         logging.info(f'⚡️IP {event_ipaddr} added to interface {event_ifname}')
-        logging.debug(f'Need reconfiguration? {not event_iface.has(configured_external_addr)}')
+        logging.info(f'Need reconfiguration? {not event_iface.has(configured_external_addr)}')
         if not event_iface.has(configured_external_addr):
             logging.info(f'A reconfiguration is needed, {event_ipaddr} != {configured_external_addr}')
-            self.reconfigure_external_address(event_ipaddr)
+            self.reconfigure_external_address(event_iface, event_ipaddr)
 
     def dispatch(self, event):
         """
