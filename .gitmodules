@@ -1,0 +1,6 @@
+[submodule "pirogue-admin-api"]
+	path = pirogue-admin-api
+	url = git@github.com:PiRogueToolSuite/pirogue-admin-api.git
+[submodule "pirogue-admin-client"]
+	path = pirogue-admin-client
+	url = git@github.com:PiRogueToolSuite/pirogue-admin-client.git

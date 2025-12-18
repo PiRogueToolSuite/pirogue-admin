@@ -80,3 +80,29 @@ Condition:
 # on the PiRogue
 pirogue-admin-client external-network enable-public-exposure --domain my-pirogue.my-domain.net --email contact@my-domain.net
 ```
+
+## Development
+
+This project now contains two submodules:
+ * [pirogue-admin-api](https://github.com/PiRogueToolSuite/pirogue-admin-api)
+ * [pirogue-admin-client](https://github.com/PiRogueToolSuite/pirogue-admin-client)
+
+Do not forget to pull submodules after a clone:
+```shell
+git submodule update --init
+```
+
+It's possible to pull submodules while cloning this project:
+```shell
+git clone --recurse-submodules git@github.com:PiRogueToolSuite/pirogue-admin.git
+```
+
+If work has been done on submodules outside this repository and want to pull changes:
+```shell
+git submodule update --remote
+```
+
+If work has been done on submodules within this repository, push your modifications with:
+```shell
+git push --recurse-submodules=on-demand
+```
