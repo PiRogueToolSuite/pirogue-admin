@@ -1,5 +1,0 @@
-cryptography~=38.0.4
-grpcio==1.51.3
-pirogue_admin_api
-pyyaml
-setuptools
