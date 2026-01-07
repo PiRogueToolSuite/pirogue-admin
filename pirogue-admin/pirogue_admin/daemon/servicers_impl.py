@@ -1,36 +1,92 @@
 import json
 import logging
 import os
-import platform
-import random
 import subprocess
-import time
 
 from pathlib import Path
-from typing import List, Callable
+from typing import Callable
 
-import grpc
 import yaml
 
 from google.protobuf import empty_pb2
 from google.protobuf.json_format import ParseDict, MessageToDict
 from google.protobuf.wrappers_pb2 import StringValue
 
-from .utils import json_chain
+from .utils import (
+    json_chain,
+    get_install_packages,
+    get_service_status,
+    get_system_usage_percent,
+)
 from pirogue_admin.cmd.cli import ADMIN_VAR_DIR
-from pirogue_admin.system_config import OperatingMode, detect_external_ipv4_address
-from pirogue_admin.system_config.wireguard import WgManager, WgPeer, WgConfig
+from pirogue_admin.system_config import OperatingMode
+from pirogue_admin.system_config.wireguard import WgManager
 from pirogue_admin_api import network_pb2, network_pb2_grpc
 from pirogue_admin_api import system_pb2, system_pb2_grpc
 from pirogue_admin_api import services_pb2, services_pb2_grpc
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
-from pirogue_admin_api.system_pb2 import Configuration, ConfigurationTree, OperatingModeResponse
-from pirogue_admin_api.network_pb2 import IsolatedPort, IsolatedPortList, WifiConfiguration, VPNPeerList, VPNPeer
-from pirogue_admin_api.services_pb2 import DashboardConfiguration, SuricataRulesSource, SuricataRulesSources
+from pirogue_admin_api.system_pb2 import (
+    Configuration,
+    ConfigurationTree,
+    OperatingModeResponse,
+    PackagesInfo,
+    PackageInfo,
+    Status,
+    SectionStatus,
+    ItemInfo,
+)
+from pirogue_admin_api.network_pb2 import (
+    IsolatedPort,
+    IsolatedPortList,
+    WifiConfiguration,
+    VPNPeerList,
+    VPNPeer,
+)
+from pirogue_admin_api.services_pb2 import (
+    DashboardConfiguration,
+    SuricataRulesSource,
+    SuricataRulesSources,
+)
 
 EMPTY = empty_pb2.Empty()
 
 ADMIN_SELF_SIGNED_CERTIFICATE_PATH = '/var/lib/pirogue/admin/pirogue-external-exposure/fullchain.pem'
+
+
+def _cross_servicer_wireguard_manager() -> WgManager:
+    """
+    Provides WgManager instance across servicer.
+    Does not depend on servicer internal states.
+    """
+    public_external_address = None
+    isolated_address = None
+    isolated_network = None
+    config_path = Path(ADMIN_VAR_DIR) / 'config.yaml'
+    if config_path.exists():
+        config = yaml.safe_load(config_path.read_text())
+        if 'PUBLIC_EXTERNAL_ADDRESS' in config:
+            public_external_address = config['PUBLIC_EXTERNAL_ADDRESS']
+        else:
+            raise RuntimeError('invalid wireguard VPN configuration: missing PUBLIC_EXTERNAL_ADDRESS')
+        if 'ISOLATED_ADDRESS' in config:
+            isolated_address = config['ISOLATED_ADDRESS']
+        else:
+            raise RuntimeError('invalid wireguard VPN configuration: missing ISOLATED_ADDRESS')
+        if 'ISOLATED_NETWORK' in config:
+            isolated_network = config['ISOLATED_NETWORK']
+        else:
+            raise RuntimeError('invalid wireguard VPN configuration: missing ISOLATED_NETWORK')
+    else:
+        raise RuntimeError('wireguard VPN is not configured')
+
+    # Use strings all the time, making things easier with serialization to and
+    # deserialization from the yaml config file used by the WireGuard manager:
+    manager = WgManager(
+        public_external_address,
+        isolated_address,
+        isolated_network,
+    )
+    return manager
 
 
 class SystemServicerImpl(system_pb2_grpc.SystemServicer):
@@ -88,6 +144,126 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
 
         return op_answer
 
+    def GetStatus(self, request, context):
+        current_config = self._pcl.current_config
+
+        isolated_interface = current_config['ISOLATED_INTERFACE']
+
+        # System status
+        system_usage_percents = get_system_usage_percent()
+        system_status = SectionStatus(name='system', description='System status')
+        system_status.items.append(ItemInfo(
+            name='ram-percent', description='RAM usage percentage',
+            state=str(system_usage_percents['ram_percent'])
+        ))
+        system_status.items.append(ItemInfo(
+            name='disk-percent', description='DISK usage percentage',
+            state=str(system_usage_percents['disk_percent'])
+        ))
+        system_status.items.append(ItemInfo(
+            name='operating-mode', description='Current operating mode',
+            state=current_config['SYSTEM_OPERATING_MODE']
+        ))
+        system_status.items.append(ItemInfo(
+            name='admin-daemon', description='Administration daemon',
+            state=get_service_status('pirogue-admin.service')
+        ))
+        system_status.items.append(ItemInfo(
+            name='isolated-interface', description='Isolated interface',
+            state=current_config['ISOLATED_INTERFACE']
+        ))
+        system_status.items.append(ItemInfo(
+            name='external-interface', description='External interface',
+            state=current_config['EXTERNAL_INTERFACE']
+        ))
+
+        # Dashboard status
+        dashboard_status = SectionStatus(name='dashboard', description='Dashboard status')
+        dashboard_status.items.append(ItemInfo(
+            name='grafana', description='Grafana server service',
+            state=get_service_status('grafana-server.service')
+        ))
+
+        dashboard_status.items.append(ItemInfo(
+            name='influxdb', description='InfluxDB server service',
+            state=get_service_status('influxdb.service')
+        ))
+
+        # Maintenance status
+        maintenance_status = SectionStatus(name='maintenance', description='Maintenance status')
+        maintenance_status.items.append(ItemInfo(
+            name='pirogue', description='Daily pirogue maintenance',
+            state=get_service_status('pirogue-maintenance.timer')
+        ))
+        maintenance_status.items.append(ItemInfo(
+            name='certificates', description='Weekly certificate maintenance',
+            state=get_service_status('pirogue-external-exposure.timer')
+        ))
+
+        # Networking status
+        networking_status = SectionStatus(name='networking', description='Networking status')
+        networking_status.items.append(ItemInfo(
+            name='vpn', description='VPN service',
+            state=get_service_status(f'wg-quick@{isolated_interface}.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='nftables', description='Firewall nftables service',
+            state=get_service_status('nftables.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='suricata', description='Suricata rules service',
+            state=get_service_status('suricata.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='evidence-collector', description='Evidence collector service',
+            state=get_service_status('pirogue-eve-collector.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='flow-inspector', description='Flow inspector service',
+            state=get_service_status(f'pirogue-flow-inspector@{isolated_interface}.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='dhcp-client', description='DHCP client service',
+            state=get_service_status('dhcpcd.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='dns', description='DNS masquerade service',
+            state=get_service_status('dnsmasq.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='access-point', description='Access point service',
+            state=get_service_status('hostapd.service')
+        ))
+        networking_status.items.append(ItemInfo(
+            name='external-exposure', description='External exposure to internet',
+            state='accessible' if current_config['ENABLE_PUBLIC_ACCESS'] else 'closed'
+        ))
+        networking_status.items.append(ItemInfo(
+            name='external-domain-name', description='External domain name',
+            state=current_config['PUBLIC_DOMAIN_NAME']
+        ))
+
+        #_cross_servicer_wireguard_manager()
+
+        answer = Status()
+        answer.sections.append(system_status)
+        answer.sections.append(dashboard_status)
+        answer.sections.append(maintenance_status)
+        answer.sections.append(networking_status)
+
+        return answer
+
+    def GetPackagesInfo(self, request, context):
+        package_states = get_install_packages("*pirogue*")
+
+        answer = PackagesInfo()
+
+        for package_state in package_states:
+            pi = PackageInfo(**package_state)
+            answer.packages.append(pi)
+
+        return answer
+
     def GetHostname(self, request, context):
         result = subprocess.check_output(['hostname'])
         return StringValue(value=result.strip())
@@ -129,35 +305,7 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
 
     @property
     def _wgm(self) -> WgManager:
-        public_external_address = None
-        isolated_address = None
-        isolated_network = None
-        config_path = Path(ADMIN_VAR_DIR) / 'config.yaml'
-        if config_path.exists():
-            config = yaml.safe_load(config_path.read_text())
-            if 'PUBLIC_EXTERNAL_ADDRESS' in config:
-                public_external_address = config['PUBLIC_EXTERNAL_ADDRESS']
-            else:
-                raise RuntimeError('invalid wireguard VPN configuration: missing PUBLIC_EXTERNAL_ADDRESS')
-            if 'ISOLATED_ADDRESS' in config:
-                isolated_address = config['ISOLATED_ADDRESS']
-            else:
-                raise RuntimeError('invalid wireguard VPN configuration: missing ISOLATED_ADDRESS')
-            if 'ISOLATED_NETWORK' in config:
-                isolated_network = config['ISOLATED_NETWORK']
-            else:
-                raise RuntimeError('invalid wireguard VPN configuration: missing ISOLATED_NETWORK')
-        else:
-            raise RuntimeError('wireguard VPN is not configured')
-
-        # Use strings all the time, making things easier with serialization to and
-        # deserialization from the yaml config file used by the WireGuard manager:
-        manager = WgManager(
-            public_external_address,
-            isolated_address,
-            isolated_network,
-        )
-        return manager
+        return _cross_servicer_wireguard_manager()
 
     def GetWifiConfiguration(self, request, context):
         current_config = self._pcl.current_config

@@ -1,7 +1,9 @@
 grpcio==1.51.3
 pirogue_admin_api
+psutil~=5.9.4
 pyroute2
+pystemd~=0.11.0
 pyyaml
 requests
+rich
 setuptools
-systemd

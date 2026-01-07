@@ -4,6 +4,7 @@ from typing import Callable
 import grpc
 import logging
 import os
+import pystemd.daemon
 import secrets
 import yaml
 
@@ -183,19 +184,11 @@ def serve():
         return
 
     # Start serving now
-    systemd_daemon_module = None
-    try:
-        import systemd.daemon
-        systemd_daemon_module = systemd.daemon
-        systemd_daemon_module.notify('READY=1')
-    except ModuleNotFoundError:
-        logging.info('systemd python library not found. skipped.')
-        pass
-
+    pystemd.daemon.notify(False, ready=1,
+                          status="pirogue-admin-daemon running")
     pirogue_admin_daemon.serve_n_block()
-
-    if systemd_daemon_module:
-        systemd_daemon_module.notify('STOPPING=1')
+    pystemd.daemon.notify(False, stopping=1,
+                          status="pirogue-admin-daemon stopping")
 
 
 if __name__ == "__main__":
