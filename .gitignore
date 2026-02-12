@@ -3,3 +3,7 @@ __pycache__
 *.egg-info/
 *.deb
 dist/
+.pybuild/
+build/
+pirogue-admin/debian/pirogue-admin/
+pirogue-admin/debian/.debhelper/

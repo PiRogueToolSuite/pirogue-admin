@@ -1,21 +1,30 @@
 import argparse
-from typing import Callable
-
 import grpc
 import logging
 import os
 import pystemd.daemon
+import re
 import secrets
 import yaml
+
+from typing import Callable
 
 from concurrent import futures
 from pathlib import Path
 
+from pirogue_admin.package_config import ConfigurationContext
+
 from pirogue_admin_api import (
     PIROGUE_ADMIN_AUTH_HEADER, PIROGUE_ADMIN_AUTH_SCHEME,
     PIROGUE_ADMIN_TCP_PORT)
-from pirogue_admin.package_config import ConfigurationContext
-from .servicers_impl import SystemServicerImpl, NetworkServicerImpl, ServicesServicerImpl
+
+from .user_access import UserAccessRegistry
+from .servicers_impl import (
+    SystemServicerImpl,
+    NetworkServicerImpl,
+    ServicesServicerImpl,
+    AccessServicerImpl,
+)
 
 WORKING_ROOT_DIR = '/'
 ADMIN_CONFIG_DIR = '/usr/share/pirogue-admin'
@@ -26,39 +35,69 @@ logger = logging.getLogger('pirogue-admin-daemon')
 
 class TokenValidationInterceptor(grpc.ServerInterceptor):
     _resolve_token = Callable[[], str]
+    _user_accesses : UserAccessRegistry
 
-    def __init__(self, token_resolver: Callable[[], str]):
+    def __init__(self, token_resolver: Callable[[], str], user_accesses: UserAccessRegistry):
         self._resolve_token = token_resolver
+        self._user_accesses = user_accesses
+        self._token_expression = re.escape(PIROGUE_ADMIN_AUTH_SCHEME) + r" ([^\s,]+)"
 
         def abort(ignored_request, context):
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid token")
 
+        def unauthorized(ignored_request, context):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
+
         self._abort_handler = grpc.unary_unary_rpc_method_handler(abort)
+        self._unauthorized_handler = grpc.unary_unary_rpc_method_handler(unauthorized)
 
     def intercept_service(self, continuation, handler_call_details):
-        token = self._resolve_token()
-        expected_metadata = (PIROGUE_ADMIN_AUTH_HEADER, "%s %s" % (PIROGUE_ADMIN_AUTH_SCHEME, token))
-        if expected_metadata in handler_call_details.invocation_metadata:
+        admin_token = self._resolve_token()
+        expected_admin_metadata = (PIROGUE_ADMIN_AUTH_HEADER, "%s %s" % (PIROGUE_ADMIN_AUTH_SCHEME, admin_token))
+        target_method = handler_call_details.method
+
+        if expected_admin_metadata in handler_call_details.invocation_metadata:
+            # If 'admin' token, continue regardless of the service/method called
+            logger.debug("Calling %s as administrator", target_method)
+            return continuation(handler_call_details)
+
+        # Extract toekn for user access check
+        metadata = dict(handler_call_details.invocation_metadata)
+        if PIROGUE_ADMIN_AUTH_HEADER not in metadata:
+            return self._abort_handler
+        authoization = metadata.get(PIROGUE_ADMIN_AUTH_HEADER)
+        auth_match = re.search(self._token_expression, authoization)
+        if not auth_match:
+            return self._abort_handler
+        auth_token = auth_match.group(1)
+
+        #
+        if self._user_accesses.has_access(target_method, auth_token):
+            # Check if
+            logger.debug("Calling %s with auth token %s", target_method, auth_token)
             return continuation(handler_call_details)
         else:
-            return self._abort_handler
+            return self._unauthorized_handler
 
 
 class PiRogueAdminDaemon:
     _base_context: ConfigurationContext
     _port: int
     _token: str
+    _user_accesses: UserAccessRegistry
 
     def __init__(self, ctx: ConfigurationContext):
         self._base_context = ctx
 
         self._load_or_create_configuration()
 
+        self._user_accesses = UserAccessRegistry(self._base_context)
+
         self.server = grpc.server(
             # Ensures PiRogue administration tasks are done one at a time
             futures.ThreadPoolExecutor(max_workers=1), maximum_concurrent_rpcs=1,
             # Intercepts each call to authenticate against authorization Token
-            interceptors=(TokenValidationInterceptor(self.get_current_token),),
+            interceptors=(TokenValidationInterceptor(self.get_current_token,self._user_accesses),),
             # Avoids reusable port. We prefer to warn the daemon caller instead.
             options=(('grpc.so_reuseport', 0),)
         )
@@ -76,6 +115,15 @@ class PiRogueAdminDaemon:
 
         services_servicer_impl = ServicesServicerImpl(self._base_context)
         services_servicer_impl.register_to_server(self.server)
+
+        access_server_impl = AccessServicerImpl(
+            self._base_context,
+            get_port_func=self.get_current_port,
+            get_token_func=self.get_current_token,
+            reset_token_func=self.reset_token,
+            user_accesses=self._user_accesses,
+        )
+        access_server_impl.register_to_server(self.server)
 
         port = self.server.add_insecure_port(f"ip6-localhost:{self._port}")
         logger.info("Listening on ip6-localhost:%d", port)
@@ -180,7 +228,7 @@ def serve():
 
     if args.reset_token:
         pirogue_admin_daemon.reset_token()
-        print('PiRogue admin token reset done.')
+        logger.info('Admin token reset done')
         return
 
     # Start serving now

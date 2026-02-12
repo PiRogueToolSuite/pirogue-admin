@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools==66.1.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -12,12 +12,12 @@ name = "pirogue-admin"
 version = "2.0.11"
 description = "Admin management for the PiRogue"
 readme = "README.md"
-license = {text = "GPL-3.0+"}
+license = { text = "GPL-3.0-or-later" }
 
 requires-python = ">= 3.9"
 dependencies = [
   "grpcio",
-  "pirogue_admin_api==2.0.2",
+  "pirogue_admin_api==2.0.3",
   "psutil~=5.9.4",
   "pyroute2",
   "pystemd~=0.11.0",

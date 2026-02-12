@@ -1,10 +1,11 @@
+import grpc
 import json
 import logging
 import os
 import subprocess
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Dict
 
 import yaml
 
@@ -18,12 +19,17 @@ from .utils import (
     get_service_status,
     get_system_usage_percent,
 )
-from pirogue_admin.cmd.cli import ADMIN_VAR_DIR
+from pirogue_admin.daemon.user_access import (
+    IllegalPermissionError,
+    UserAccess as UserAccess_Internal,
+    UserAccessRegistry,
+)
 from pirogue_admin.system_config import OperatingMode
 from pirogue_admin.system_config.wireguard import WgManager
 from pirogue_admin_api import network_pb2, network_pb2_grpc
 from pirogue_admin_api import system_pb2, system_pb2_grpc
 from pirogue_admin_api import services_pb2, services_pb2_grpc
+from pirogue_admin_api import access_pb2, access_pb2_grpc
 from pirogue_admin.package_config import ConfigurationContext, PackageConfigLoader
 from pirogue_admin_api.system_pb2 import (
     Configuration,
@@ -47,13 +53,21 @@ from pirogue_admin_api.services_pb2 import (
     SuricataRulesSource,
     SuricataRulesSources,
 )
+from pirogue_admin_api.access_pb2 import (
+    MethodAccess,
+    ServiceAccess,
+    UserAccess,
+    UserAccessList,
+    PermissionChanges,
+)
 
 EMPTY = empty_pb2.Empty()
 
-ADMIN_SELF_SIGNED_CERTIFICATE_PATH = '/var/lib/pirogue/admin/pirogue-external-exposure/fullchain.pem'
+ADMIN_SELF_SIGNED_CERTIFICATE_PATH = 'pirogue-external-exposure/fullchain.pem'
 
+logger = logging.getLogger(__name__)
 
-def _cross_servicer_wireguard_manager() -> WgManager:
+def _cross_servicer_wireguard_manager(ctx: ConfigurationContext) -> WgManager:
     """
     Provides WgManager instance across servicer.
     Does not depend on servicer internal states.
@@ -61,7 +75,7 @@ def _cross_servicer_wireguard_manager() -> WgManager:
     public_external_address = None
     isolated_address = None
     isolated_network = None
-    config_path = Path(ADMIN_VAR_DIR) / 'config.yaml'
+    config_path = Path(ctx.var_dir, 'config.yaml')
     if config_path.exists():
         config = yaml.safe_load(config_path.read_text())
         if 'PUBLIC_EXTERNAL_ADDRESS' in config:
@@ -104,7 +118,7 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
         return PackageConfigLoader(self._base_configuration_context)
 
     def GetConfiguration(self, request, context):
-        logging.debug('current_config:', self._pcl.current_config)
+        logger.debug('current_config:', self._pcl.current_config)
         current_config = self._pcl.current_config
         # Prevent native type into message
         sanitized_current_config = dict(map(lambda kv: (kv[0], str(kv[1])), current_config.items()))
@@ -288,7 +302,7 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
 class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
     def __init__(self,
                  base_configuration_context: ConfigurationContext,
-                 get_port_func: Callable[[], str],
+                 get_port_func: Callable[[], int],
                  get_token_func: Callable[[], str],
                  reset_token_func: Callable[[], None]):
         self._base_configuration_context = base_configuration_context
@@ -305,7 +319,7 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
 
     @property
     def _wgm(self) -> WgManager:
-        return _cross_servicer_wireguard_manager()
+        return _cross_servicer_wireguard_manager(self._base_configuration_context)
 
     def GetWifiConfiguration(self, request, context):
         current_config = self._pcl.current_config
@@ -319,9 +333,9 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         return response
 
     def SetWifiConfiguration(self, request, context):
-        logging.debug(f'SetWifiConfiguration: {request}')
+        logger.debug(f'SetWifiConfiguration: {request}')
         configuration = MessageToDict(request, preserving_proto_field_name=True)
-        logging.debug(f'configuration: {configuration}')
+        logger.debug(f'configuration: {configuration}')
         config_to_apply = {}
         if 'ssid' in configuration:
             config_to_apply['WIFI_SSID'] = configuration['ssid']
@@ -354,7 +368,6 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
 
     def AddVPNPeer(self, request, context):
         add_request = MessageToDict(request, preserving_proto_field_name=True)
-        print('add_request:', add_request)
         add_comment = ''
         add_public_key = ''
         if 'comment' in add_request:
@@ -393,37 +406,6 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         config = self._wgm.get_peer_config(idx)
         return StringValue(value=config)
 
-    def ResetAdministrationToken(self, request, context):
-
-        logging.info('reset-ing administration token')
-
-        self._reset_token_func()
-        return StringValue(value=self._get_token_func())
-
-    def GetAdministrationToken(self, request, context):
-        return StringValue(value=self._get_token_func())
-
-    def GetAdministrationCertificate(self, request, context):
-        certificate = Path(ADMIN_SELF_SIGNED_CERTIFICATE_PATH).read_text()
-        return StringValue(value=certificate)
-
-    def GetAdministrationCLIs(self, request, context):
-        current_config = self._pcl.current_config
-        port = self._get_port_func()
-        token = self._get_token_func()
-        external_address = current_config['EXTERNAL_ADDRESS']
-
-        clis = list()
-        clis.append(f"# One time client configuration")
-        clis.append(f"pirogue-admin-client"
-                    f" --save"
-                    f" --host '{external_address}'"
-                    f" --port {port}"
-                    f" --token {token}")
-        clis.append(f"# Then, use directly")
-        clis.append(f"pirogue-admin-client system get-configuration")
-        return StringValue(value='\n'.join(clis))
-
     def EnableExternalPublicAccess(self, request, context):
         enable_request = MessageToDict(request, preserving_proto_field_name=True)
         new_conf_to_apply = {
@@ -432,7 +414,7 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
             'ENABLE_PUBLIC_ACCESS': True,
         }
 
-        logging.info('enabling external public access')
+        logger.info('enabling external public access')
 
         current_config = self._pcl.apply_configuration(new_conf_to_apply)
         return EMPTY
@@ -447,7 +429,7 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
             'PUBLIC_DOMAIN_NAME': f"{current_config['SYSTEM_HOSTNAME']}.local",
         }
 
-        logging.info('disabling external public access')
+        logger.info('disabling external public access')
 
         current_config = self._pcl.apply_configuration(new_conf_to_apply)
         return EMPTY
@@ -522,7 +504,7 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         if requested_port in _ports:
             raise ValueError(f"port {requested_port} already opened")
 
-        logging.info(f'opening isolated port: {requested_port}')
+        logger.info(f'opening isolated port: {requested_port}')
 
         open_step_1_result = subprocess.check_output([
             'nft', 'add', 'rule', 'inet', 'filter', 'pirogue_admin_chain',
@@ -554,7 +536,7 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
             if requested_port not in _ports:
                 raise ValueError(f"port {requested_port} not opened")
 
-            logging.info(f'closing isolated port: {request.port}')
+            logger.info(f'closing isolated port: {request.port}')
 
             close_step_1_result = subprocess.check_output([
                 'nft', 'delete', 'rule', 'inet', 'filter', 'pirogue_admin_chain',
@@ -565,12 +547,13 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
                 'handle', _ports[requested_port]['handle_oif']])
 
         else:
-            logging.info(f'closing all isolated ports')
+            logger.info(f'closing all isolated ports')
 
             close_result = subprocess.check_output([
                 'nft', 'flush', 'chain', 'inet', 'filter', 'pirogue_admin_chain'])
 
         return EMPTY
+
 
 class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
 
@@ -615,3 +598,168 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
                 url=source_config['url'],
             ))
         return response
+
+
+class AccessServicerImpl(access_pb2_grpc.AccessServicer):
+
+    _user_accesses : UserAccessRegistry
+
+    """
+    Provides implementation for PiRogue admin Access service.
+    """
+    def __init__(self,
+                 base_configuration_context: ConfigurationContext,
+                 get_port_func: Callable[[], int],
+                 get_token_func: Callable[[], str],
+                 reset_token_func: Callable[[], None],
+                 user_accesses: UserAccessRegistry):
+        self._base_configuration_context = base_configuration_context
+        self._get_port_func = get_port_func
+        self._get_token_func = get_token_func
+        self._reset_token_func = reset_token_func
+        self._user_accesses = user_accesses
+
+    def register_to_server(self, server):
+        access_pb2_grpc.add_AccessServicer_to_server(self, server)
+
+    @property
+    def _pcl(self) -> PackageConfigLoader:
+        return PackageConfigLoader(self._base_configuration_context)
+
+    def ResetAdministrationToken(self, request, context):
+
+        logger.info('reset-ing administration token')
+
+        self._reset_token_func()
+        return StringValue(value=self._get_token_func())
+
+    def GetAdministrationToken(self, request, context):
+        return StringValue(value=self._get_token_func())
+
+    def GetAdministrationCertificate(self, request, context):
+        certificate_fullpath = Path(self._base_configuration_context.var_dir, ADMIN_SELF_SIGNED_CERTIFICATE_PATH)
+        certificate = Path(certificate_fullpath).read_text()
+        return StringValue(value=certificate)
+
+    def GetAdministrationCLIs(self, request, context):
+        current_config = self._pcl.current_config
+        port = self._get_port_func()
+        token = self._get_token_func()
+        external_address = current_config['EXTERNAL_ADDRESS']
+
+        clis = list()
+        clis.append(f"# One time client configuration")
+        clis.append(f"pirogue-admin-client"
+                    f" --save"
+                    f" --host '{external_address}'"
+                    f" --port {port}"
+                    f" --token {token}")
+        clis.append(f"# Then, use directly")
+        clis.append(f"pirogue-admin-client system get-configuration")
+        return StringValue(value='\n'.join(clis))
+
+    @staticmethod
+    def _user_access_to_grpc(user_access: UserAccess_Internal):
+        services = {}
+        for (service, methods) in user_access.permissions.items():
+            services[service] = MethodAccess()
+            for method in methods:
+                services[service].permission.append(method)
+        permissions = ServiceAccess(services=services)
+        response = UserAccess(idx=user_access.idx, token=user_access.token, permissions=permissions)
+        return response
+
+    def CreateUserAccess(self, request, context):
+        user_access = self._user_accesses.create()
+        response = AccessServicerImpl._user_access_to_grpc(user_access)
+        return response
+
+    def GetUserAccess(self, request, context):
+        idx = request.value
+        try:
+            user_access = self._user_accesses.get(idx)
+            response = AccessServicerImpl._user_access_to_grpc(user_access)
+            return response
+        except KeyError:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(f"UserAccess not found idx:{idx}")
+            return UserAccess()
+
+    def ListUserAccesses(self, request, context):
+        response = UserAccessList()
+        for user_access in self._user_accesses._user_accesses:
+            response.user_accesses.append(AccessServicerImpl._user_access_to_grpc(user_access))
+        return response
+
+    def DeleteUserAccess(self, request, context):
+        idx = request.value
+        try:
+            self._user_accesses.delete(idx)
+        except KeyError:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(f"UserAccess not found idx:{idx}")
+        return EMPTY
+
+    def ResetUserAccessToken(self, request, context):
+        idx = request.value
+        try:
+            user_access = self._user_accesses.reset_token(idx)
+            response = AccessServicerImpl._user_access_to_grpc(user_access)
+            return response
+        except KeyError:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(f"UserAccess not found idx:{idx}")
+            return UserAccess()
+
+    def GetPermissionList(self, request, context):
+        permissions_map = {}
+        for (service_name, methods) in self._user_accesses.available_permissions.items():
+            permissions_map[service_name] = MethodAccess()
+            for method_name in methods:
+                permissions_map[service_name].permission.append(method_name)
+        response = ServiceAccess(services=permissions_map)
+        return response
+
+    def SetUserAccessPermissions(self, request, context):
+        idx = request.user_access_idx
+
+        sets: Dict[str, Set[str]] = {}
+        adds: Dict[str, Set[str]] = {}
+        removes: Dict[str, Set[str]] = {}
+
+        has_sets = False
+        has_adds = False
+        has_removes = False
+
+        try:
+            for (service, method_access) in request.sets.services.items():
+                for permission in method_access.permission:
+                    self._user_accesses.check_permission(service, permission)
+                    sets.setdefault(service, set()).add(permission)
+                    has_sets = True
+            for (service, method_access) in request.adds.services.items():
+                for permission in method_access.permission:
+                    adds.setdefault(service, set()).add(permission)
+                    has_adds = True
+            for (service, method_access) in request.removes.services.items():
+                for permission in method_access.permission:
+                    removes.setdefault(service, set()).add(permission)
+                    has_removes = True
+        except IllegalPermissionError as error:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(f"Permission not found: {error.permission}")
+            return UserAccess()
+
+        if has_sets and (has_adds or has_removes):
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(f"Can't add or remove permissions with 'sets' permissions is defined")
+            return UserAccess()
+
+        try:
+            user_access = self._user_accesses.set_permissions(idx, sets, adds, removes)
+            response = AccessServicerImpl._user_access_to_grpc(user_access)
+            return response
+        except KeyError:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(f"UserAccess not found idx:{idx}")
+            return UserAccess()
