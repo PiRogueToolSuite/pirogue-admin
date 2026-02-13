@@ -1,3 +1,9 @@
+pirogue-admin (2.0.12) bookworm; urgency=medium
+
+  * Fixed pypi PEP-625 compliance on dependencies
+
+ -- Christophe Andral <christophe@andral.fr>  Fri, 13 Feb 2026 11:17:02 +0100
+
 pirogue-admin (2.0.11) bookworm; urgency=medium
 
   * Improved packages info message and status

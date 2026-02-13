@@ -8,7 +8,7 @@ Build-Depends:
  pybuild-plugin-pyproject,
  python3-all,
  python3-grpcio,
- python3-pirogue-admin-api (= 2.0.3),
+ python3-pirogue-admin-api (= 2.0.4),
  python3-psutil,
  python3-pystemd,
  python3-rich,
@@ -24,7 +24,7 @@ Package: pirogue-admin
 Architecture: all
 Depends:
  python3-grpcio,
- python3-pirogue-admin-api (= 2.0.3),
+ python3-pirogue-admin-api (= 2.0.4),
  python3-psutil,
  python3-pystemd,
  python3-requests,
