@@ -9,7 +9,7 @@ namespaces = false
 
 [project]
 name = "pirogue-admin"
-version = "2.0.11"
+version = "2.0.13"
 description = "Admin management for the PiRogue"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
@@ -17,7 +17,7 @@ license = { text = "GPL-3.0-or-later" }
 requires-python = ">= 3.9"
 dependencies = [
   "grpcio",
-  "pirogue_admin_api==2.0.4",
+  "pirogue_admin_api==2.0.5",
   "psutil~=5.9.4",
   "pyroute2",
   "pystemd~=0.11.0",

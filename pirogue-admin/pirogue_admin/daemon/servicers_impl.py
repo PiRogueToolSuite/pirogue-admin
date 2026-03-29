@@ -2,6 +2,7 @@ import grpc
 import json
 import logging
 import os
+import shlex
 import subprocess
 
 from pathlib import Path
@@ -52,6 +53,8 @@ from pirogue_admin_api.services_pb2 import (
     DashboardConfiguration,
     SuricataRulesSource,
     SuricataRulesSources,
+    DeviceMonitoring,
+    DeviceMonitorings, DeviceMonitoringFilter,
 )
 from pirogue_admin_api.access_pb2 import (
     MethodAccess,
@@ -583,21 +586,201 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
             self._pcl.apply_configuration(config_to_apply)
         return EMPTY
 
-    def ListSuricataRulesSources(self, request, context):
-        response = SuricataRulesSources()
-        for source_path in Path('/var/lib/suricata/update/sources').glob('*.yaml'):
+    @staticmethod
+    def _yaml_dict_to_suricata_source_descriptor(source_name, source):
+        source_descriptor = {
+            'name': source_name,
+            'enabled': False,
+        }
+        if 'url' in source:
+            source_descriptor['url'] = source['url']
+        if 'summary' in source:
+            source_descriptor['summary'] = source['summary']
+        if 'vendor' in source:
+            source_descriptor['vendor'] = source['vendor']
+        if 'license' in source:
+            source_descriptor['license'] = source['license']
+        if 'parameters' in source: # case: the source comes from cache/index.yaml
+            for (param_name, param_info) in source['parameters'].items():
+                source_descriptor.setdefault('parameters', {})
+                source_descriptor['parameters'][param_name] = param_info['prompt']
+        if 'params' in source:     # case: the source comes from active
+            for (param_name, param_value) in source['params'].items():
+                source_descriptor.setdefault('parameters', {})
+                source_descriptor['parameters'][param_name] = param_value
+
+        return source_descriptor
+
+    @staticmethod
+    def _suricata_sources_registry(ctx: ConfigurationContext):
+        sources_registry = dict()
+
+        # System sources
+        system_source_file = Path(
+            ctx.pirogue_working_root_dir,
+            'var/lib/suricata/update/cache/index.yaml')
+        if system_source_file.exists():
+            system_sources = yaml.safe_load(system_source_file.read_text())
+            for (name, source) in system_sources['sources'].items():
+                source_descriptor = ServicesServicerImpl._yaml_dict_to_suricata_source_descriptor(name, source)
+                source_descriptor['system'] = True
+                sources_registry[name] = source_descriptor
+
+        # Custom (or enabled system) sources
+        for source_path in Path(
+                ctx.pirogue_working_root_dir,
+                'var/lib/suricata/update/sources').glob('*.yaml'):
             if source_path.is_dir():
                 continue
             if source_path.is_symlink():
                 continue
             source_config = yaml.safe_load(source_path.read_text())
-            if 'url' not in source_config:
-                continue
-            response.sources.append(SuricataRulesSource(
-                name=source_config['source'],
-                url=source_config['url'],
-            ))
+            source_name = source_config['source']
+            if source_name in sources_registry:
+                sources_registry[source_name]['enabled'] = True
+                if 'params' in source_config:
+                    # Override with effective source-enabled values
+                    sources_registry[source_name]['parameters'] = source_config['params']
+            else:
+                source_descriptor = ServicesServicerImpl._yaml_dict_to_suricata_source_descriptor(source_name, source_config)
+                source_descriptor['enabled'] = True
+                sources_registry[source_name] = source_descriptor
+
+        return sources_registry
+
+    def ListSuricataRulesSources(self, request, context):
+        sources_registry = ServicesServicerImpl._suricata_sources_registry(
+            self._base_configuration_context)
+
+        response = SuricataRulesSources()
+        for (name, source) in sources_registry.items():
+            response.sources.append(SuricataRulesSource(**source))
+
         return response
+
+    def AddSuricataRulesSource(self, request, context):
+        source_name = request.name
+        source_url = request.url
+
+        sources_registry = ServicesServicerImpl._suricata_sources_registry(
+            self._base_configuration_context)
+
+        if source_name in sources_registry:
+            existing_source = sources_registry[source_name]
+            source_params = request.parameters
+            sanity_checked_params = []
+            for (param_name, param_value) in source_params.items():
+                if 'parameters' not in existing_source:
+                    raise Exception(f"No parameters expected to enable source '{source_name}'")
+                if param_name not in existing_source['parameters']:
+                    raise Exception(f"Not expected parameter '{param_name}'")
+                sanity_checked_value = shlex.quote(param_value)
+                sanity_checked_params.append(f"{param_name}={sanity_checked_value}")
+            result = subprocess.check_output(['suricata-update', 'enable-source', source_name] + sanity_checked_params)
+        else:
+            if not source_url:
+                raise Exception(f"url expected to add new source '{source_name}'")
+            result = subprocess.check_output(['suricata-update', 'add-source', source_name, source_url])
+
+        return EMPTY
+
+    def DeleteSuricataRulesSource(self, request, context):
+        source_name = request.value
+        result = subprocess.check_output(['suricata-update', 'remove-source', source_name])
+        return EMPTY
+
+    @staticmethod
+    def _list_device_monitorings(ctx:ConfigurationContext):
+        monitorings_registry = dict()
+
+        for monitoring_file_path in Path(
+                ctx.pirogue_working_root_dir,
+                'var/lib/mongoose/webhook.d').glob('*.yaml'):
+            monitoring_config = yaml.safe_load(monitoring_file_path.read_text())
+            monitoring_name = monitoring_file_path.stem
+            monitorings_registry[monitoring_name] = monitoring_config
+            monitorings_registry[monitoring_name]['name'] = monitoring_name
+
+        return monitorings_registry
+
+    def ListDeviceMonitorings(self, request, context):
+        device_monitorings = ServicesServicerImpl._list_device_monitorings(
+            self._base_configuration_context)
+
+        response = DeviceMonitorings()
+        for (name, monitoring) in device_monitorings.items():
+            response.monitorings.append(DeviceMonitoring(**monitoring))
+
+        return response
+
+    def AddDeviceMonitoring(self, request, context):
+        monitoring_name = request.name
+
+        payload = MessageToDict(request, preserving_proto_field_name=True)
+        payload.pop('name', None)
+
+        yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
+                         f"var/lib/mongoose/webhook.d/{monitoring_name}.yaml")
+
+        with open(yaml_file, 'w') as out_fd:
+            yaml.safe_dump(payload, out_fd,
+                           sort_keys=False,
+                           default_flow_style=False,
+                           encoding="utf-8",
+                           allow_unicode=True)
+
+        return EMPTY
+
+    def DeleteDeviceMonitoring(self, request, context):
+        monitoring_name = request.value
+
+        device_monitorings = ServicesServicerImpl._list_device_monitorings(
+            self._base_configuration_context)
+
+        if monitoring_name not in device_monitorings:
+            raise Exception(f"No monitoring named '{monitoring_name}'")
+
+        yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
+                         f"var/lib/mongoose/webhook.d/{monitoring_name}.yaml")
+
+        if not yaml_file.exists():
+            raise Exception(f"No monitoring (file) named '{monitoring_name}'")
+
+        yaml_file.unlink()
+
+        return EMPTY
+
+    def GetDeviceMonitoringTemplate(self, request, context):
+        answer = DeviceMonitoring(
+            name="10-this-is-a-template",
+            enable=True,
+            url="http[s]://a-webhook-server.org/some-post-enabled-endpoint",
+            headers={
+                "X-HEADER-ONE": "Header value one",
+                "X-AUTHORIZATION": "Secret: An authorization header value",
+                "X-COMMENT": "Headers are optionals",
+                "MANDATORY-FIELDS-ARE": "name, enable, url",
+                "OTHERS-FIELDS-ARE": "optional",
+            },
+            mode="immediate | bulk | periodic",
+            auth_type="none | basic | bearer | header",
+            auth_token="authorization value if auth_type is basic or bearer",
+            auth_header_name="header name to use for auth_token if auth_type is header",
+            verify_ssl=True,
+            retry_count=3,
+            retry_delay=5.0,
+            timeout=10.0,
+            bulk_size=10,
+            periodic_interval=5.0,
+            periodic_rate=10,
+            filters=[
+                DeviceMonitoringFilter(attribute="src_ip", values=["10.10.0.1"]),
+                DeviceMonitoringFilter(attribute="dest_ip", values=["129.168.0.1","129.168.0.2"]),
+                DeviceMonitoringFilter(attribute="comment_about_filters", values=[
+                    "multiple filters act as OR logic", "as of multiple values act as OR logic"]),
+            ]
+        )
+        return answer
 
 
 class AccessServicerImpl(access_pb2_grpc.AccessServicer):

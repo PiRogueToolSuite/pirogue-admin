@@ -1,3 +1,10 @@
+pirogue-admin (2.0.13) bookworm; urgency=medium
+
+  * Device monitoring management
+  * Better Suricata rules management
+
+ -- Christophe Andral <christophe@andral.fr>  Fri, 27 Mar 2026 14:09:45 +0100
+
 pirogue-admin (2.0.12) bookworm; urgency=medium
 
   * Fixed pypi PEP-625 compliance on dependencies
