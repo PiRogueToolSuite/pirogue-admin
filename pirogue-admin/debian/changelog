@@ -1,3 +1,9 @@
+pirogue-admin (2.0.14) bookworm; urgency=medium
+
+  * Fix: Use atomic writes for Mongoose webhooks to prevent rule loading failures
+
+ -- Christophe Andral <christophe@andral.fr>  Mon, 30 Mar 2026 18:53:44 +0200
+
 pirogue-admin (2.0.13) bookworm; urgency=medium
 
   * Device monitoring management

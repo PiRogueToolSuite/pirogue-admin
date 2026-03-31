@@ -719,15 +719,19 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
         payload = MessageToDict(request, preserving_proto_field_name=True)
         payload.pop('name', None)
 
-        yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
-                         f"var/lib/mongoose/webhook.d/{monitoring_name}.yaml")
+        tmp_yaml_file = Path(f"/tmp/{monitoring_name}.yaml")
 
-        with open(yaml_file, 'w') as out_fd:
+        with open(tmp_yaml_file, 'w') as out_fd:
             yaml.safe_dump(payload, out_fd,
                            sort_keys=False,
                            default_flow_style=False,
                            encoding="utf-8",
                            allow_unicode=True)
+
+        yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
+                         f"var/lib/mongoose/webhook.d/{monitoring_name}.yaml")
+
+        os.rename(tmp_yaml_file, yaml_file)
 
         return EMPTY
 
