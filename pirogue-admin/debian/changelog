@@ -1,4 +1,4 @@
-pirogue-admin (2.1.0) UNRELEASED; urgency=medium
+pirogue-admin (2.1.0) trixie; urgency=medium
 
   * Add support for Python 3.13: While the historical Pi-based use case
     seems to work out of the box with the initial set of packages in the
@@ -11,7 +11,7 @@ pirogue-admin (2.1.0) UNRELEASED; urgency=medium
     occurrences (all found in wireguard.py).
   * Install systemd unit below /usr, avoiding aliased-location errors.
 
- -- Cyril Brulebois <cyril@debamax.com>  Sat, 18 Apr 2026 01:56:29 +0200
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 18 Apr 2026 02:08:01 +0200
 
 pirogue-admin (2.0.14) bookworm; urgency=medium
 
