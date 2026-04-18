@@ -212,10 +212,10 @@ class WgManager:
         API call: generate the peer config file.
         """
         dest = self.select_destination(idx, opt_dest, 'conf')
-        with dest.with_suffix('.new') as new_dest:
-            new_dest.touch(0o600)
-            new_dest.write_text(self.get_peer_config(idx))
-            new_dest.rename(dest)
+        new_dest = dest.with_suffix('.new')
+        new_dest.touch(0o600)
+        new_dest.write_text(self.get_peer_config(idx))
+        new_dest.rename(dest)
         logging.info('generated conf: %s', dest)
         return dest
 
@@ -227,12 +227,12 @@ class WgManager:
         for the included config file.
         """
         dest = self.select_destination(idx, opt_dest, 'zip')
-        with dest.with_suffix('.new') as new_dest:
-            new_dest.touch(0o600)
-            with zipfile.ZipFile(new_dest, mode="w") as archive:
-                archive.writestr(dest.name.replace('.zip', '.conf'),
+        new_dest = dest.with_suffix('.new')
+        new_dest.touch(0o600)
+        with zipfile.ZipFile(new_dest, mode="w") as archive:
+            archive.writestr(dest.name.replace('.zip', '.conf'),
                                  self.get_peer_config(idx))
-            new_dest.rename(dest)
+        new_dest.rename(dest)
         logging.info('generated zip: %s', dest)
         return dest
 
@@ -254,14 +254,14 @@ class WgManager:
         time being.
         """
         dest = self.select_destination(idx, opt_dest, 'png')
-        with dest.with_suffix('.new') as new_dest:
-            new_dest.touch(0o600)
-            qrcode = check_output(
-                ['qrencode', '-t', 'PNG', '-s', str(QRENCODE_DOT_SIZE), '-o', '-'],
-                input=self.get_peer_config(idx).encode('utf-8')
-            )
-            new_dest.write_bytes(qrcode)
-            new_dest.rename(dest)
+        new_dest = dest.with_suffix('.new')
+        new_dest.touch(0o600)
+        qrcode = check_output(
+            ['qrencode', '-t', 'PNG', '-s', str(QRENCODE_DOT_SIZE), '-o', '-'],
+            input=self.get_peer_config(idx).encode('utf-8')
+        )
+        new_dest.write_bytes(qrcode)
+        new_dest.rename(dest)
         logging.info('generated qrcode: %s', dest)
         return dest
 
@@ -315,10 +315,10 @@ class WgManager:
             lines.append(f'PersistentKeepAlive = {DEFAULT_WG_PERSISTENT_KEEP_ALIVE}')
 
         # Atomic write:
-        with wg_conf.with_suffix('.new') as new_wg_conf:
-            new_wg_conf.touch(0o600)
-            new_wg_conf.write_text(''.join([line + '\n' for line in lines]))
-            new_wg_conf.rename(wg_conf)
+        new_wg_conf = wg_conf.with_suffix('.new')
+        new_wg_conf.touch(0o600)
+        new_wg_conf.write_text(''.join([line + '\n' for line in lines]))
+        new_wg_conf.rename(wg_conf)
 
         # Enable/restart unit if something changed:
         size2, digest2 = get_size_and_digest(wg_conf)
@@ -405,17 +405,17 @@ class WgManager:
             self.config.private_key, self.config.public_key = self.generate_key_pair()
 
         # Atomic write:
-        with config_path.with_suffix('.new') as new_config_path:
-            new_config_path.touch(0o600)
-            yaml.safe_dump(
-                asdict(self.config),
-                new_config_path.open('w'),
-                sort_keys=False,
-                default_flow_style=False,
-                encoding="utf-8",
-                allow_unicode=True,
-            )
-            new_config_path.rename(config_path)
+        new_config_path = config_path.with_suffix('.new')
+        new_config_path.touch(0o600)
+        yaml.safe_dump(
+            asdict(self.config),
+            new_config_path.open('w'),
+            sort_keys=False,
+            default_flow_style=False,
+            encoding="utf-8",
+            allow_unicode=True,
+        )
+        new_config_path.rename(config_path)
 
         # Disable old unit if needed:
         if old_interface:
