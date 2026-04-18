@@ -9,6 +9,7 @@ pirogue-admin (2.1.0) UNRELEASED; urgency=medium
        (More at https://docs.python.org/3/whatsnew/3.13.html#id4)
   * Use a variable assignment and de-indent the relevant code for the 5
     occurrences (all found in wireguard.py).
+  * Install systemd unit below /usr, avoiding aliased-location errors.
 
  -- Cyril Brulebois <cyril@debamax.com>  Sat, 18 Apr 2026 01:56:29 +0200
 

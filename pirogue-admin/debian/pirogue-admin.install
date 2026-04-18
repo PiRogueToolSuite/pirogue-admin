@@ -1,1 +1,1 @@
-debian/network-configuration-monitor.service /lib/systemd/system
+debian/network-configuration-monitor.service /usr/lib/systemd/system
