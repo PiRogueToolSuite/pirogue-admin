@@ -1,3 +1,12 @@
+pirogue-admin (2.0.15) bookworm; urgency=medium
+
+  * Fix system-wide device listing tool
+  * Adds echo-like feature to Access service : MyUserAccess
+  * Fix 'Invalid cross-device link' on managing mongoose webhooks
+    for specific files system types configuration
+
+ -- Christophe Andral <christophe@andral.fr>  Wed, 15 Apr 2026 11:50:33 +0200
+
 pirogue-admin (2.0.14) bookworm; urgency=medium
 
   * Fix: Use atomic writes for Mongoose webhooks to prevent rule loading failures

@@ -4,15 +4,17 @@ import logging
 import os
 import shlex
 import subprocess
+import time
+import yaml
 
 from pathlib import Path
+from sqlalchemy import create_engine, text
 from typing import Callable, Dict
-
-import yaml
 
 from google.protobuf import empty_pb2
 from google.protobuf.json_format import ParseDict, MessageToDict
 from google.protobuf.wrappers_pb2 import StringValue
+
 
 from .utils import (
     json_chain,
@@ -20,6 +22,8 @@ from .utils import (
     get_service_status,
     get_system_usage_percent,
 )
+
+from pirogue_admin.daemon.auth_token_utils import extract_auth_token
 from pirogue_admin.daemon.user_access import (
     IllegalPermissionError,
     UserAccess as UserAccess_Internal,
@@ -43,6 +47,8 @@ from pirogue_admin_api.system_pb2 import (
     ItemInfo,
 )
 from pirogue_admin_api.network_pb2 import (
+    Device,
+    DeviceList,
     IsolatedPort,
     IsolatedPortList,
     WifiConfiguration,
@@ -67,6 +73,12 @@ from pirogue_admin_api.access_pb2 import (
 EMPTY = empty_pb2.Empty()
 
 ADMIN_SELF_SIGNED_CERTIFICATE_PATH = 'pirogue-external-exposure/fullchain.pem'
+
+MONGOOSE_WEBHOOD_D_FOLDER = 'var/lib/mongoose/webhook.d'
+MONGOOSE_DATATABSE_FILEPATH = 'var/lib/mongoose/mongoose.db'
+
+SURICATA_UPDATE_SOURCE_FOLED = 'var/lib/suricata/update/sources'
+SURICATA_CACHE_INDEX_FILEPATH = 'var/lib/suricata/update/cache/index.yaml'
 
 logger = logging.getLogger(__name__)
 
@@ -285,21 +297,13 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
         result = subprocess.check_output(['hostname'])
         return StringValue(value=result.strip())
 
-    # TODO: SetHostname
-
     def GetLocale(self, request, context):
         result = os.getenv('LANG')
         return StringValue(value=result)
 
-    # TODO: SetLocale
-
     def GetTimezone(self, request, context):
         result = subprocess.check_output(['timedatectl', '-p', 'Timezone', '--value', 'show'])
         return StringValue(value=result.strip())
-
-    # TODO: SetTimezone
-
-    # TODO: ListConnectedDevices
 
 
 class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
@@ -351,22 +355,24 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
         return EMPTY
 
     def ListVPNPeers(self, request, context):
-        # mock:
-        # peers = []
-        # for idx in range(1,10):
-        #     peers.append(WgPeer(idx=idx, comment=f'comment {idx}', public_key=f'pubk {idx}', private_key=f'pubk {idx}'))
-        peers = self._wgm.list()
+        cached_wgm = self._wgm
+        peers = cached_wgm.list()
         response = VPNPeerList()
         for peer in peers:
-            response.peers.append(VPNPeer(idx=peer.idx, comment=peer.comment, public_key=peer.public_key, private_key=peer.private_key))
+            response.peers.append(
+                VPNPeer(idx=peer.idx, comment=peer.comment,
+                        public_key=peer.public_key, private_key=peer.private_key,
+                        ipv4_address=cached_wgm.get_peer_ipv4_address(peer.idx)))
         return response
 
     def GetVPNPeer(self, request, context):
         idx = request.value
-        # mock:
-        # peer = WgPeer(idx=idx, comment=f'comment {idx}', public_key=f'pubk {idx}', private_key=f'pubk {idx}')
-        peer = self._wgm.get(idx)
-        response = VPNPeer(idx=peer.idx, comment=peer.comment, public_key=peer.public_key, private_key=peer.private_key)
+
+        cached_wgm = self._wgm
+        peer = cached_wgm.get(idx)
+        response = VPNPeer(idx=peer.idx, comment=peer.comment,
+                           public_key=peer.public_key, private_key=peer.private_key,
+                           ipv4_address=cached_wgm.get_peer_ipv4_address(peer.idx))
         return response
 
     def AddVPNPeer(self, request, context):
@@ -377,11 +383,12 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
             add_comment = add_request['comment']
         if 'public_key' in add_request:
             add_public_key = add_request['public_key']
-        # mock:
-        # idx = random.randint(1000, 9999)
-        # peer = WgPeer(idx=idx, comment=f'comment {idx}', public_key=f'pubk {idx}', private_key=f'pubk {idx}')
-        peer = self._wgm.add(comment=add_comment, public_key=add_public_key)
-        response = VPNPeer(idx=peer.idx, comment=peer.comment, public_key=peer.public_key, private_key=peer.private_key)
+
+        cached_wgm = self._wgm
+        peer = cached_wgm.add(comment=add_comment, public_key=add_public_key)
+        response = VPNPeer(idx=peer.idx, comment=peer.comment,
+                           public_key=peer.public_key, private_key=peer.private_key,
+                           ipv4_address=cached_wgm.get_peer_ipv4_address(peer.idx))
         return response
 
     def DeleteVPNPeer(self, request, context):
@@ -557,6 +564,52 @@ class NetworkServicerImpl(network_pb2_grpc.NetworkServicer):
 
         return EMPTY
 
+    def ListConnectedDevices(self, request, context):
+        mongoose_database_path = Path(self._base_configuration_context.pirogue_working_root_dir,
+                                      MONGOOSE_DATATABSE_FILEPATH)
+
+        if not mongoose_database_path.exists():
+            logger.error('mongoose database does not exist: %s', mongoose_database_path)
+            raise Exception("can't list connected devices: pirogue-mongoose not installed")
+
+        engine = (create_engine(f'sqlite:///{MONGOOSE_DATATABSE_FILEPATH}')
+                  .execution_options(isolation_level='READ UNCOMMITTED'))
+        query = text("SELECT DISTINCT(src_ip) as ip_addr FROM network_dpi"
+                     " WHERE enrichment->>'direction'='outbound'"
+                     " AND timestamp > unixepoch() - :timeout_s")
+
+        devices = []
+
+        # Gather Operating Mode
+        current_config = self._pcl.current_config
+        is_vpn = (('SYSTEM_OPERATING_MODE' in current_config)
+                  and (OperatingMode(self._pcl.current_config['SYSTEM_OPERATING_MODE']) == OperatingMode.VPN))
+        cached_wgm = None
+        if is_vpn:
+            cached_wgm = self._wgm
+
+        retry_count = 5
+        for attempt in range(retry_count):
+            try:
+                with engine.connect() as connection:
+                    result = connection.execute(query, {"timeout_s": 60*60})
+                    for row in result:
+                        kwargs = { 'ip_addr':row.ip_addr }
+                        if is_vpn:
+                            kwargs['peer_idx'] = cached_wgm.get_peer_index(row.ip_addr)
+                        device = Device(**kwargs)
+                        devices.append(device)
+            except:
+                logger.warn('unabled to acquire mongoose database lock. attempt: %d/%d',
+                            attempt+1, retry_count)
+                time.sleep(200)
+                continue
+            # at this point query succeed
+            break
+
+        response = DeviceList(devices=devices)
+        return response
+
 
 class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
 
@@ -618,7 +671,7 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
         # System sources
         system_source_file = Path(
             ctx.pirogue_working_root_dir,
-            'var/lib/suricata/update/cache/index.yaml')
+            SURICATA_CACHE_INDEX_FILEPATH)
         if system_source_file.exists():
             system_sources = yaml.safe_load(system_source_file.read_text())
             for (name, source) in system_sources['sources'].items():
@@ -629,7 +682,7 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
         # Custom (or enabled system) sources
         for source_path in Path(
                 ctx.pirogue_working_root_dir,
-                'var/lib/suricata/update/sources').glob('*.yaml'):
+                SURICATA_UPDATE_SOURCE_FOLED).glob('*.yaml'):
             if source_path.is_dir():
                 continue
             if source_path.is_symlink():
@@ -695,7 +748,7 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
 
         for monitoring_file_path in Path(
                 ctx.pirogue_working_root_dir,
-                'var/lib/mongoose/webhook.d').glob('*.yaml'):
+                MONGOOSE_WEBHOOD_D_FOLDER).glob('*.yaml'):
             monitoring_config = yaml.safe_load(monitoring_file_path.read_text())
             monitoring_name = monitoring_file_path.stem
             monitorings_registry[monitoring_name] = monitoring_config
@@ -719,7 +772,9 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
         payload = MessageToDict(request, preserving_proto_field_name=True)
         payload.pop('name', None)
 
-        tmp_yaml_file = Path(f"/tmp/{monitoring_name}.yaml")
+        tmp_yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
+                             MONGOOSE_WEBHOOD_D_FOLDER,
+                             f"{monitoring_name}.yaml.tmp")
 
         with open(tmp_yaml_file, 'w') as out_fd:
             yaml.safe_dump(payload, out_fd,
@@ -729,7 +784,8 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
                            allow_unicode=True)
 
         yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
-                         f"var/lib/mongoose/webhook.d/{monitoring_name}.yaml")
+                         MONGOOSE_WEBHOOD_D_FOLDER,
+                         f"{monitoring_name}.yaml")
 
         os.rename(tmp_yaml_file, yaml_file)
 
@@ -745,7 +801,8 @@ class ServicesServicerImpl(services_pb2_grpc.ServicesServicer):
             raise Exception(f"No monitoring named '{monitoring_name}'")
 
         yaml_file = Path(self._base_configuration_context.pirogue_working_root_dir,
-                         f"var/lib/mongoose/webhook.d/{monitoring_name}.yaml")
+                         MONGOOSE_WEBHOOD_D_FOLDER,
+                         f"{monitoring_name}.yaml")
 
         if not yaml_file.exists():
             raise Exception(f"No monitoring (file) named '{monitoring_name}'")
@@ -950,3 +1007,11 @@ class AccessServicerImpl(access_pb2_grpc.AccessServicer):
             context.set_code(grpc.StatusCode.NOT_FOUND)
             context.set_details(f"UserAccess not found idx:{idx}")
             return UserAccess()
+
+    def MyUserAccess(self, request, context):
+        current_auth_token = extract_auth_token(context.invocation_metadata())
+        user_access = self._user_accesses.get_by_token(current_auth_token)
+
+        response = AccessServicerImpl._user_access_to_grpc(user_access)
+
+        return response

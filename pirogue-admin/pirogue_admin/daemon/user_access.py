@@ -6,7 +6,7 @@ import yaml
 from pathlib import Path
 
 from pirogue_admin.package_config import ConfigurationContext
-from typing import Dict,List,Set
+from typing import Dict, List, Set, Callable
 
 from pirogue_admin_api.network_pb2 import DESCRIPTOR as DESCRIPTOR_NETWORK
 from pirogue_admin_api.services_pb2 import DESCRIPTOR as DESCRIPTOR_SERVICES
@@ -18,6 +18,7 @@ ADMIN_USER_ACCESSES_REGISTRY_PATH = 'user_accesses.yaml'
 ALL_SERVICE_PERMISSION = 'all'
 
 logger = logging.getLogger(__name__)
+
 
 class IllegalPermissionError(ValueError):
     permission: str
@@ -51,13 +52,18 @@ class UserAccess:
 class UserAccessRegistry:
 
     _ctx: ConfigurationContext
+    _resolve_admin_token = Callable[[], str]
     _user_accesses: List[UserAccess] = []
     _services_short_name_to_long_name: Dict[str, str] = {}
     available_permissions: Dict[str, Set[str]] = {}
     _current_access_tree: Dict[str, Set[str]] = {}
+    _authenticated_but_public_methods:List[str] = [
+        '/pirogue.admin.access.Access/MyUserAccess',
+    ]
 
-    def __init__(self, ctx: ConfigurationContext):
+    def __init__(self, ctx: ConfigurationContext, admin_token_resolver: Callable[[], str]):
         self._ctx = ctx
+        self._resolve_admin_token = admin_token_resolver
 
         self._scan_permissions()
         self._load_or_create()
@@ -139,6 +145,11 @@ class UserAccessRegistry:
             self._save()
 
     def has_access(self, method, token):
+        if method in self._authenticated_but_public_methods:
+            # check at least if token is known
+            for ua in self._user_accesses:
+                if ua.token == token:
+                    return True
         if method not in self._current_access_tree:
             return False
         return token in self._current_access_tree[method]
@@ -169,6 +180,18 @@ class UserAccessRegistry:
             if ua.idx == idx:
                 return ua
         raise KeyError(idx)
+
+    def get_by_token(self, token:str):
+        if token == self._resolve_admin_token():
+            return UserAccess(
+                idx=0,
+                token='[admin token redacted]',
+                permissions=self.available_permissions,
+            )
+        for ua in self._user_accesses:
+            if ua.token == token:
+                return ua
+        raise KeyError(token)
 
     def reset_token(self, idx:int):
         user_access = None
@@ -248,6 +271,7 @@ class UserAccessRegistry:
             return True
         if permission not in self.available_permissions[service]:
             raise IllegalPermissionError(f"{service}:{permission}")
+        return False
 
     @staticmethod
     def _generate_token():
