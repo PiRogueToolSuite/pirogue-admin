@@ -361,6 +361,20 @@ class WgManager:
 
         return ''.join([line + '\n' for line in lines])
 
+    def get_peer_ipv4_address(self, idx: int):
+        peer = None
+        for config_peer in self.config.peers:
+            if config_peer.idx == idx:
+                peer = config_peer
+        if peer is None:
+            raise RuntimeError(f'no peer with index={idx}')
+        return peer.get_ipv4_address(self.config.isolated_network)
+
+    def get_peer_index(self, ipv4_address: str):
+        for config_peer in self.config.peers:
+            if ipv4_address == self.get_peer_ipv4_address(config_peer.idx):
+                return config_peer.idx
+        return None
 
     def save_config(self, merge: bool = False):
         """

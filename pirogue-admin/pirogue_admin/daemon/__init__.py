@@ -3,19 +3,22 @@ import grpc
 import logging
 import os
 import pystemd.daemon
-import re
 import secrets
 import yaml
 
+from concurrent import futures
+
+from grpc import HandlerCallDetails
+from grpc._cython.cygrpc import _HandlerCallDetails, _Metadatum
+from pathlib import Path
 from typing import Callable
 
-from concurrent import futures
-from pathlib import Path
-
+from pirogue_admin.daemon.auth_token_utils import extract_auth_token
 from pirogue_admin.package_config import ConfigurationContext
 
 from pirogue_admin_api import (
-    PIROGUE_ADMIN_AUTH_HEADER, PIROGUE_ADMIN_AUTH_SCHEME,
+    PIROGUE_ADMIN_AUTH_HEADER,
+    PIROGUE_ADMIN_AUTH_SCHEME,
     PIROGUE_ADMIN_TCP_PORT)
 
 from .user_access import UserAccessRegistry
@@ -40,7 +43,6 @@ class TokenValidationInterceptor(grpc.ServerInterceptor):
     def __init__(self, token_resolver: Callable[[], str], user_accesses: UserAccessRegistry):
         self._resolve_token = token_resolver
         self._user_accesses = user_accesses
-        self._token_expression = re.escape(PIROGUE_ADMIN_AUTH_SCHEME) + r" ([^\s,]+)"
 
         def abort(ignored_request, context):
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid token")
@@ -61,15 +63,11 @@ class TokenValidationInterceptor(grpc.ServerInterceptor):
             logger.debug("Calling %s as administrator", target_method)
             return continuation(handler_call_details)
 
-        # Extract toekn for user access check
-        metadata = dict(handler_call_details.invocation_metadata)
-        if PIROGUE_ADMIN_AUTH_HEADER not in metadata:
+        # Extract token for user access check
+        try:
+            auth_token = extract_auth_token(handler_call_details.invocation_metadata)
+        except Exception:
             return self._abort_handler
-        authoization = metadata.get(PIROGUE_ADMIN_AUTH_HEADER)
-        auth_match = re.search(self._token_expression, authoization)
-        if not auth_match:
-            return self._abort_handler
-        auth_token = auth_match.group(1)
 
         #
         if self._user_accesses.has_access(target_method, auth_token):
@@ -91,7 +89,7 @@ class PiRogueAdminDaemon:
 
         self._load_or_create_configuration()
 
-        self._user_accesses = UserAccessRegistry(self._base_context)
+        self._user_accesses = UserAccessRegistry(self._base_context, self.get_current_token)
 
         self.server = grpc.server(
             # Ensures PiRogue administration tasks are done one at a time
