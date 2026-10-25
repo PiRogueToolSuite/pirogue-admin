@@ -1,3 +1,15 @@
+pirogue-admin (3.0.0) UNRELEASED; urgency=medium
+
+  * Merge changes from the main branch, based on bookworm:
+     - 1 release: 2.0.15;
+     - 1 commit: bumping the pirogue-admin-client submodule.
+  * Bump pirogue-admin-api submodule to v3.0.0.
+  * Bump pirogue-admin-client submodule to v3.0.0.
+  * Bump pirogue_admin_api dependency to 3.0.0 accordingly.
+  * Bump python3-pirogue-admin-api Builds-Depends/Depends accordingly.
+
+ -- Cyril Brulebois <cyril@debamax.com>  Sun, 25 Oct 2026 23:12:12 +0100
+
 pirogue-admin (2.1.0) trixie; urgency=medium
 
   * Add support for Python 3.13: While the historical Pi-based use case
