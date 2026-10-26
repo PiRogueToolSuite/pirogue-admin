@@ -214,8 +214,8 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
         ))
 
         dashboard_status.items.append(ItemInfo(
-            name='influxdb', description='InfluxDB server service',
-            state=get_service_status('influxdb.service')
+            name='admin-web', description='Admin web service',
+            state=get_service_status('pirogue-admin-web.service')
         ))
 
         # Maintenance status
@@ -244,12 +244,8 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
             state=get_service_status('suricata.service')
         ))
         networking_status.items.append(ItemInfo(
-            name='evidence-collector', description='Evidence collector service',
-            state=get_service_status('pirogue-eve-collector.service')
-        ))
-        networking_status.items.append(ItemInfo(
-            name='flow-inspector', description='Flow inspector service',
-            state=get_service_status(f'pirogue-flow-inspector@{isolated_interface}.service')
+            name='mongoose', description='Mongoose service',
+            state=get_service_status('pirogue-mongoose.service')
         ))
         networking_status.items.append(ItemInfo(
             name='dhcp-client', description='DHCP client service',
