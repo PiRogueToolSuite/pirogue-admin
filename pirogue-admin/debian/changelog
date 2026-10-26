@@ -1,3 +1,11 @@
+pirogue-admin (3.0.1) trixie; urgency=medium
+
+  * Update the list of tracked systemd units:
+     - remove eve-collector and flow-inspector (replaced by mongoose)
+     - add pirogue-admin-web and pirogue-mongoose
+
+ -- U+039b <hello@pts-project.org>  Mon, 26 Oct 2026 17:15:37 +0100
+
 pirogue-admin (3.0.0) trixie; urgency=medium
 
   * Merge changes from the main branch, based on bookworm:
