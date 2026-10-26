@@ -240,7 +240,7 @@ class SystemServicerImpl(system_pb2_grpc.SystemServicer):
             state=get_service_status('nftables.service')
         ))
         networking_status.items.append(ItemInfo(
-            name='suricata', description='Suricata rules service',
+            name='suricata', description='Suricata service',
             state=get_service_status('suricata.service')
         ))
         networking_status.items.append(ItemInfo(
